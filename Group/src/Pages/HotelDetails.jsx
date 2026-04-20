@@ -4,7 +4,13 @@ import GallerySection from "../Components/GallerySection";
 import BranchesSection from "../Components/BranchesSection";
 import AmenitiesSection from "../Components/AmenitiesSection";
 import PrimeLocationSection from "../Components/PrimeLocationSection";
-import { hotelDetailsData } from "../data/hotelDetailsData";
+import {
+  locations,
+  hotelName,
+  galleryImages,
+  branchDetails,
+  hotelAmenities,
+} from "../data/hotels";
 import Footer from "../Components/Footer";
 
 export default function HotelDetails() {
@@ -12,13 +18,11 @@ export default function HotelDetails() {
     <div className="min-h-screen">
       <Navbar />
 
-      <GallerySection images={hotelDetailsData.galleryImages} />
-      <BranchesSection branches={hotelDetailsData.branches} />
-      <AmenitiesSection amenities={hotelDetailsData.amenities} />
-      <PrimeLocationSection
-        hotelName={hotelDetailsData.hotelName}
-        locations={hotelDetailsData.locations}
-      />
+      <GallerySection images={galleryImages} />
+      <BranchesSection branches={branchDetails} />
+      <AmenitiesSection amenities={hotelAmenities} />
+      <PrimeLocationSection hotelName={hotelName} locations={locations} />
+
       <Footer />
     </div>
   );

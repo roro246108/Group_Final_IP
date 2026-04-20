@@ -1,18 +1,26 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { MapPin, Star, Sparkles } from "lucide-react";
-import { hotelDetailsData } from "../data/hotelDetailsData";
 import BranchRoomsSection from "../Components/BranchRoomsSection";
-import hotels from "../data/hotels";
+import hotels, { locations, branchDetails } from "../data/hotels";
 import Navbar from "../Components/Navbar";
 import Footer from "../Components/Footer";
 
 export default function UserBranchDetails() {
   const { slug } = useParams();
 
-  const selectedBranch = hotelDetailsData.branches.find(
-    (branch) => branch.slug === slug
+  const branchInfo = branchDetails.find((branch) => branch.slug === slug);
+  const branchLocation = locations.find(
+    (location) => location.name === branchInfo?.title
   );
+
+  const selectedBranch =
+    branchInfo && branchLocation
+      ? {
+          ...branchInfo,
+          ...branchLocation,
+        }
+      : null;
 
   if (!selectedBranch) {
     return (
@@ -58,32 +66,17 @@ export default function UserBranchDetails() {
   const branchRooms = hotels
     .filter((room) => room.branch === selectedBranch.title)
     .map((room) => ({
-      title: room.roomName,
-      guests: `${room.guests} Guests`,
-      description: roomDescriptionByType[room.type] || room.roomName,
-      price: `$${room.price}/night`,
-      image: room.image,
+      ...room,
+      cardDescription: roomDescriptionByType[room.type] || room.roomName,
       badge:
         room.type === "Deluxe"
           ? "Popular"
           : room.type === "Penthouse"
           ? "Luxury"
           : "",
-      features: room.amenities.slice(0, 3),
     }));
 
-  const branchLocationText =
-    selectedBranch.slug === "cairo-branch"
-      ? "90th Street, New Cairo, Cairo, Egypt"
-      : selectedBranch.slug === "alexandria-branch"
-      ? "Corniche Road, Alexandria, Egypt"
-      : selectedBranch.slug === "sharm-el-sheikh-branch"
-      ? "Naama Bay, Sharm El Sheikh, Egypt"
-      : selectedBranch.slug === "hurghada-branch"
-      ? "Village Road, Hurghada, Egypt"
-      : selectedBranch.slug === "marsa-alam-branch"
-      ? "Marsa Alam Road, Marsa Alam, Egypt"
-      : selectedBranch.location || selectedBranch.city || "Egypt";
+  const branchLocationText = selectedBranch.address || selectedBranch.city || "Egypt";
 
   return (
     <>
