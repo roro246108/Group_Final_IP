@@ -1,6 +1,6 @@
 import cors from "cors";
 import express from "express";
-import reviewRoutes from "./routes/reviews.js";
+import reviewRoutes from "../routes/review.js";
 
 export const globalMiddlewares = (app) => {
   app.use(cors());

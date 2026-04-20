@@ -1,6 +1,6 @@
 // routes/reviews.js
 import express from "express";
-import { getReviews, createReview, deleteReview } from "../controllers/reviewController.js";
+import { getReviews, createReview, deleteReview } from "../controller/reviewController.js";
 import { protect } from "../MiddleWares/auth.js";
 
 const router = express.Router();
