@@ -17,6 +17,13 @@ import Penthouse1 from "../assets/Images/Penthouse1.jpg";
 import Penthouse2 from "../assets/Images/Penthouse (2).jpg";
 import Penthouse3 from "../assets/Images/Penthouse3.jpg";
 import Penthouse4 from "../assets/Images/Penthouse4.jpg";
+import CairoBranchImg from "../assets/Images/Cairo_Branch.png";
+import AinElSokhnaBranchImg from "../assets/Images/Ain_El_Sokhna_Branch.png";
+import SharmBranchImg from "../assets/Images/Sharm_Branch.png";
+import AlexBranchImg from "../assets/Images/Alex_Branch.png";
+import CairoInteriorImg from "../assets/Images/cairo_interior.webp";
+import AlexInteriorImg from "../assets/Images/Alex_interior.png";
+import MarsaAlamBranchImg from "../assets/Images/MrasaAlam_Branch.avif";
 
 const hotels = [
   {
@@ -402,6 +409,177 @@ const hotels = [
     featured: true,
     image: Penthouse1,
     amenities: ["Private Terrace", "Ocean View", "WiFi", "Jacuzzi"],
+  },
+];
+
+ export const locations = [
+  {
+    id: 1,
+    name: "Cairo Branch",
+    city: "Cairo",
+    address: "90th Street, New Cairo, Cairo, Egypt",
+    airport: "Cairo International Airport - 30 minutes drive",
+    attractions:
+      "Point 90 Mall, Cairo Festival City, The American University in Cairo",
+    mapPosition: [30.0185, 31.4905],
+    mapsQuery: "90th Street, New Cairo, Cairo, Egypt",
+    checkIn: "3:00 PM",
+    checkOut: "12:00 PM",
+  },
+  {
+    id: 2,
+    name: "Alexandria Branch",
+    city: "Alexandria",
+    address: "Corniche Road, Alexandria, Egypt",
+    airport: "Borg El Arab Airport - 45 minutes drive",
+    attractions:
+      "Bibliotheca Alexandrina, Qaitbay Citadel, Stanley Bridge",
+    mapPosition: [31.2156, 29.9553],
+    mapsQuery: "Corniche Road, Alexandria, Egypt",
+    checkIn: "3:00 PM",
+    checkOut: "12:00 PM",
+  },
+  {
+    id: 3,
+    name: "Sharm El Sheikh Branch",
+    city: "Sharm El Sheikh",
+    address: "Naama Bay, Sharm El Sheikh, Egypt",
+    airport: "Sharm El Sheikh International Airport - 20 minutes drive",
+    attractions:
+      "Naama Bay, SOHO Square, Ras Mohammed National Park",
+    mapPosition: [27.9158, 34.3299],
+    mapsQuery: "Naama Bay, Sharm El Sheikh, Egypt",
+    checkIn: "3:00 PM",
+    checkOut: "12:00 PM",
+  },
+  {
+    id: 4,
+    name: "Ain El Sokhna Branch",
+    city: "Ain El Sokhna",
+    address: "Ain El Sokhna Coast, Egypt",
+    airport: "Cairo International Airport - around 2 hours drive",
+    attractions:
+      "Red Sea Coast, Beach Resorts, Weekend Getaways",
+    mapPosition: [29.6000, 32.3167],
+    mapsQuery: "Ain El Sokhna Coast, Egypt",
+    checkIn: "3:00 PM",
+    checkOut: "12:00 PM",
+  },
+  {
+    id: 5,
+    name: "Marsa Alam Branch",
+    city: "Marsa Alam",
+    address: "Marsa Alam Road, Marsa Alam, Egypt",
+    airport: "Marsa Alam International Airport - 25 minutes drive",
+    attractions:
+      "Abu Dabbab Beach, Wadi El Gemal, Port Ghalib",
+    mapPosition: [25.0676, 34.8789],
+    mapsQuery: "Marsa Alam Road, Marsa Alam, Egypt",
+    checkIn: "3:00 PM",
+    checkOut: "12:00 PM",
+  },
+];
+
+export const hotelName = "Blue Wave Hotel";
+
+export const galleryImages = [
+  CairoBranchImg,
+  AinElSokhnaBranchImg,
+  SharmBranchImg,
+  AlexBranchImg,
+  CairoInteriorImg,
+  AlexInteriorImg,
+  MarsaAlamBranchImg,
+];
+
+export const branchDetails = [
+  {
+    title: "Cairo Branch",
+    slug: "cairo-branch",
+    description:
+      "A sophisticated city escape in New Cairo, offering modern comfort, premium services, and easy access to shopping, dining, and business hubs.",
+    image: CairoBranchImg,
+    badge: "City",
+    features: ["Business Hub", "Fine Dining", "Pool"],
+  },
+  {
+    title: "Alexandria Branch",
+    slug: "alexandria-branch",
+    description:
+      "A stylish Mediterranean retreat that blends seaside charm, cultural surroundings, and refined comfort in the heart of Alexandria.",
+    image: AlexBranchImg,
+    badge: "Coastal",
+    features: ["Sea View", "City Access", "Dining"],
+  },
+  {
+    title: "Marsa Alam Branch",
+    slug: "marsa-alam-branch",
+    description:
+      "A tranquil luxury hideaway surrounded by natural beauty, ideal for guests seeking relaxation, beachfront serenity, and marine adventures.",
+    image: MarsaAlamBranchImg,
+    badge: "Nature",
+    features: ["Coral Reefs", "Beachfront", "Relaxation"],
+  },
+  {
+    title: "Ain El Sokhna Branch",
+    slug: "ain-el-sokhna-branch",
+    description:
+      "A relaxing seaside destination with elegant hospitality, scenic Red Sea views, and a peaceful atmosphere perfect for weekend getaways.",
+    image: AinElSokhnaBranchImg,
+    badge: "Beach",
+    features: ["Sea View", "Private Beach", "Spa"],
+  },
+  {
+    title: "Sharm El Sheikh Branch",
+    slug: "sharm-el-sheikh-branch",
+    description:
+      "A vibrant coastal resort experience known for luxury stays, crystal-clear waters, and unforgettable leisure and adventure activities.",
+    image: SharmBranchImg,
+    badge: "Resort",
+    features: ["Diving", "Resort Pool", "Activities"],
+  },
+];
+
+export const hotelAmenities = [
+  {
+    title: "High-Speed WiFi",
+    description: "Complimentary fiber-optic internet throughout the property",
+    icon: "wifi",
+  },
+  {
+    title: "Infinity Pool",
+    description: "Heated saltwater pool with panoramic ocean views",
+    icon: "waves",
+  },
+  {
+    title: "Fitness Center",
+    description: "24/7 state-of-the-art gym with personal trainers",
+    icon: "dumbbell",
+  },
+  {
+    title: "Fine Dining",
+    description: "3 restaurants featuring Michelin-starred chefs",
+    icon: "utensils",
+  },
+  {
+    title: "Valet Parking",
+    description: "Complimentary valet and secure underground parking",
+    icon: "car",
+  },
+  {
+    title: "Full-Service Spa",
+    description: "Massage, facial treatments, and wellness programs",
+    icon: "sparkles",
+  },
+  {
+    title: "Business Center",
+    description: "Meeting rooms, printing, and secretarial services",
+    icon: "briefcase",
+  },
+  {
+    title: "Concierge",
+    description: "24-hour concierge for reservations and experiences",
+    icon: "concierge",
   },
 ];
 
