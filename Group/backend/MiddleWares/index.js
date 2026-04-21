@@ -2,7 +2,7 @@ import cors from "cors";
 import express from "express";
 import reviewRoutes from "../routes/review.js";
 import bookingRoutes from "../routes/bookingRouts.js";
-import authRoutes from "../routes/auth.js";
+import authRoutes from "../routes/authRoutes.js";
 
 export const globalMiddlewares = (app) => {
   app.use(cors());
