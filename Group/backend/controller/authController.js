@@ -55,10 +55,6 @@ export const register = async (req, res) => {
       user: buildUserResponse(user),
     });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({ message: "Email already exists" });
-    }
-
     res.status(500).json({
       message: "Server error",
       error: error.message,
@@ -66,6 +62,7 @@ export const register = async (req, res) => {
   }
 };
 
+// LOGIN
 export const login = async (req, res) => {
   const errors = validationResult(req);
 
@@ -112,9 +109,14 @@ export const login = async (req, res) => {
   }
 };
 
+// GET CURRENT USER
 export const getMe = async (req, res) => {
   try {
+    console.log("getMe - req.user:", req.user);
+    console.log("getMe - looking for user ID:", req.user.userId);
+    
     const user = await User.findById(req.user.userId).select("-password");
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -122,6 +124,9 @@ export const getMe = async (req, res) => {
     res.json({
       user: buildUserResponse(user),
     });
+    console.log("getMe - found user:", user);
+
+    res.json(user);
   } catch (error) {
     res.status(500).json({
       message: "Server error",
@@ -134,4 +139,20 @@ export const logout = async (req, res) => {
   res.status(200).json({
     message: "Logout successful",
   });
+};
+// GET ALL USERS
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+
+    res.status(200).json({
+      count: users.length,
+      users,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
 };

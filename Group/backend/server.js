@@ -2,10 +2,6 @@ import express from "express";
 import dotenv from "dotenv";
 import connectDB from "./db.js";
 
-// routes
-import bookingRoutes from "./routes/bookingRouts.js";
-import authRoutes from "./routes/authRoutes.js";
-
 // middlewares
 import { globalMiddlewares } from "./MiddleWares/index.js";
 
@@ -16,10 +12,6 @@ const PORT = process.env.PORT || 5050;
 
 // global middleware
 globalMiddlewares(app);
-
-// routes
-app.use("/auth", authRoutes);
-app.use("/bookings", bookingRoutes);
 
 // test route
 app.get("/", (req, res) => {

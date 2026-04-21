@@ -10,10 +10,10 @@ export const protect = (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "group-project-dev-secret"
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    console.log("Token decoded:", decoded);
+    console.log("Looking up user with ID:", decoded.userId);
 
     req.user = decoded;
     next();
