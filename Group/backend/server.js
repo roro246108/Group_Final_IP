@@ -3,9 +3,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./db.js";
 
-// routes
-import bookingRoutes from "./routes/bookingRouts.js";
-
 // middlewares
 import { globalMiddlewares } from "./MiddleWares/index.js";
 
@@ -16,9 +13,6 @@ const app = express();
 
 // global middleware
 globalMiddlewares(app);
-
-// routes
-app.use("/bookings", bookingRoutes);
 
 // test route
 app.get("/", (req, res) => {
