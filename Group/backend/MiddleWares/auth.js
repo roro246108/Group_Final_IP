@@ -1,8 +1,6 @@
 import jwt from "jsonwebtoken";
 
 export const protect = (req, res, next) => {
-  console.log("protect is running");
-
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -12,11 +10,21 @@ export const protect = (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "group-project-dev-secret"
+    );
 
     req.user = decoded;
     next();
   } catch (error) {
     return res.status(401).json({ message: "Invalid token" });
   }
+};
+
+export const requireRole = (...allowedRoles) => (req, res, next) => {
+  if (!req.user || !allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  next();
 };
