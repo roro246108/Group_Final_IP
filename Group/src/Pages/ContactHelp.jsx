@@ -19,6 +19,8 @@ import {
   X,
 } from "lucide-react";
 import FAQAccordion from "../Components/FAQAccordion";
+import { apiPost } from "../services/apiClient";
+import { useAuth } from "../Context/AuthContext";
 
 // ── Contact info for all branches ──
 const BRANCHES = [
@@ -92,6 +94,7 @@ function Toast({ message, type, onClose }) {
 
 // ── Main component ──
 export default function ContactHelp() {
+  const { isAuthenticated } = useAuth();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -132,6 +135,12 @@ export default function ContactHelp() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    if (!isAuthenticated) {
+      showToast("Please log in first to send a message.", "error");
+      return;
+    }
+
     const v = validate();
     if (Object.keys(v).length > 0) {
       setErrors(v);
@@ -139,11 +148,16 @@ export default function ContactHelp() {
       return;
     }
     setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setIsSubmitting(false);
-    showToast("Your message has been sent! We'll get back to you within 24 hours.");
-    setForm({ name: "", email: "", phone: "", branch: "", inquiryType: "", message: "" });
-    setErrors({});
+    try {
+      await apiPost("/contact-messages", form);
+      showToast("Your message has been sent! We'll get back to you within 24 hours.");
+      setForm({ name: "", email: "", phone: "", branch: "", inquiryType: "", message: "" });
+      setErrors({});
+    } catch (error) {
+      showToast(error.message || "Could not send your message right now.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   // ── Tab data ──

@@ -65,9 +65,7 @@ export default function LoginPage() {
       setServerError("");
       setIsSubmittingAnim(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 1400));
-
-      const result = login(values.email, values.password);
+      const result = await login(values.email, values.password);
 
       setIsSubmittingAnim(false);
 

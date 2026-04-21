@@ -89,9 +89,7 @@ export default function RegisterPage() {
       setServerError("");
       setIsSubmittingAnim(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 1400));
-
-      const result = register({
+      const result = await register({
         fullName: values.fullName,
         email: values.email,
         phone: values.phone,
