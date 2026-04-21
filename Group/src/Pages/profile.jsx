@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../Context/UserContext';
+import { useAuth } from '../Context/AuthContext';
 import EditProfileForm from "../Components/EditProfileForm";
 import UpcomingStays from "../Components/UpcomingStays";
 import BookingHistory from "../Components/BookingHistory";
-import Navbar from "../Components/Navbar";
 import {
   CalendarDays, History, Award, Edit3, Shield, X, CheckCircle2, 
   AlertCircle, LogOut, Loader2 // Added Loader2 for the spinner
@@ -155,6 +155,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
 // --- Main Page Component ---
 export default function ProfilePage() {
   const { user } = useUser();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState('profile');
@@ -177,13 +178,10 @@ export default function ProfilePage() {
     setLastChangedText(`today, ${now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`);
   };
 
-  const handleLogOutConfirm = () => {
+  const handleLogOutConfirm = async () => {
     setIsLoggingOut(true);
-    // Simulating a delay for the spinner effect
-    setTimeout(() => {
-      console.log("User logged out");
-      navigate('/'); 
-    }, 1200);
+    await logout();
+    navigate('/'); 
   };
 
   if (!user) return <div className="p-20 text-center text-slate-400 font-medium">Loading Profile...</div>;

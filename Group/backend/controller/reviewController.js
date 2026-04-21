@@ -15,6 +15,19 @@ export const createReview = async (req, res) => {
 };
 
 export const deleteReview = async (req, res) => {
+  const review = await Review.findById(req.params.id);
+
+  if (!review) {
+    return res.status(404).json({ message: "Review not found" });
+  }
+
+  const isOwner = String(review.userId) === String(req.user.userId);
+  const isAdmin = req.user.role === "admin";
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
   await Review.findByIdAndDelete(req.params.id);
-  res.status(204).send();
+  return res.status(204).send();
 };

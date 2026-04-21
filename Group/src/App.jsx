@@ -30,14 +30,16 @@ import HotelDetails from "./Pages/HotelDetails";
 import HomePage from "./Pages/HomePage";
 import RegisterPage from "./Pages/RegisterPage";
 import LoginPage from "./Pages/LoginPage";
+import { UserProvider } from "./Context/UserContext";
 
 function App() {
   return (
     <AuthProvider>
-      <FavoritesProvider>
-        <OffersProvider>
-          <BrowserRouter>
-            <Routes>
+      <UserProvider>
+        <FavoritesProvider>
+          <OffersProvider>
+            <BrowserRouter>
+              <Routes>
               {/* Public */}
               <Route path="/" element={<HomePage />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -158,10 +160,11 @@ function App() {
                 <Route path="/help" element={<ContactHelp />} />
                 <Route path="/about" element={<About />} />
               </Route>
-            </Routes>
-          </BrowserRouter>
-        </OffersProvider>
-      </FavoritesProvider>
+              </Routes>
+            </BrowserRouter>
+          </OffersProvider>
+        </FavoritesProvider>
+      </UserProvider>
     </AuthProvider>
   );
 }

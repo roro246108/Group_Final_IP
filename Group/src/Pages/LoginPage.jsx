@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import bgImage from "../assets/Images/register-bg.jpg";
 import { useAuth } from "../Context/AuthContext";
+import { authApi } from "../services/authApi";
 
 const formContainer = {
   hidden: {},
@@ -78,32 +79,19 @@ export default function LoginPage() {
           }),
         });
 
-        const data = await response.json();
-
         setIsSubmittingAnim(false);
 
-        if (!response.ok) {
-          if (data.errors && Array.isArray(data.errors)) {
-            data.errors.forEach((err) => {
-              if (err.path === "email") {
-                setFieldError("email", err.msg);
-              } else if (err.path === "password") {
-                setFieldError("password", err.msg);
-              }
-            });
-          }
-
-          setServerError(data.message || "Login failed");
-          setShakeForm(true);
-          setTimeout(() => setShakeForm(false), 500);
-          return;
+        if (values.rememberMe) {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("user");
+        } else {
+          sessionStorage.setItem("token", data.token);
+          sessionStorage.setItem("user", JSON.stringify(data.user));
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
         }
-
- localStorage.setItem("token", data.token);
-localStorage.setItem("user", JSON.stringify(data.user));
-
-sessionStorage.removeItem("token");
-sessionStorage.removeItem("user");
 
         refreshAuth();
         setSuccessMessage(true);
@@ -119,7 +107,16 @@ sessionStorage.removeItem("user");
         }, 1200);
       } catch (error) {
         setIsSubmittingAnim(false);
-        setServerError("Cannot connect to server");
+        if (error.errors && Array.isArray(error.errors)) {
+          error.errors.forEach((err) => {
+            if (err.path === "email") {
+              setFieldError("email", err.msg);
+            } else if (err.path === "password") {
+              setFieldError("password", err.msg);
+            }
+          });
+        }
+        setServerError(error.message || "Cannot connect to server");
         setShakeForm(true);
         setTimeout(() => setShakeForm(false), 500);
       }

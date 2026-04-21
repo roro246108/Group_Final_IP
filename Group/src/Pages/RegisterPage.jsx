@@ -15,6 +15,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import bgImage from "../assets/Images/register-bg.jpg";
+import { authApi } from "../services/authApi";
 
 
 const formContainer = {
@@ -94,44 +95,15 @@ export default function RegisterPage() {
         const [firstName, ...rest] = values.fullName.trim().split(" ");
         const lastName = rest.join(" ") || "User";
 
-        const response = await fetch("http://localhost:5050/auth/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            firstName,
-            lastName,
-            email: values.email,
-            phone: values.phone,
-            password: values.password,
-          }),
+        await authApi.register({
+          firstName,
+          lastName,
+          email: values.email,
+          phone: values.phone,
+          password: values.password,
         });
 
-        const data = await response.json();
-
         setIsSubmittingAnim(false);
-
-        if (!response.ok) {
-          if (data.errors && Array.isArray(data.errors)) {
-            data.errors.forEach((err) => {
-              if (err.path === "firstName" || err.path === "lastName") {
-                setFieldError("fullName", err.msg);
-              } else if (err.path === "email") {
-                setFieldError("email", err.msg);
-              } else if (err.path === "phone") {
-                setFieldError("phone", err.msg);
-              } else if (err.path === "password") {
-                setFieldError("password", err.msg);
-              }
-            });
-          }
-
-          setServerError(data.message || "Registration failed");
-          setShakeForm(true);
-          setTimeout(() => setShakeForm(false), 500);
-          return;
-        }
 
         setSuccessMessage(true);
         resetForm();
@@ -142,7 +114,20 @@ export default function RegisterPage() {
         }, 1200);
       } catch (error) {
         setIsSubmittingAnim(false);
-        setServerError("Cannot connect to server");
+        if (error.errors && Array.isArray(error.errors)) {
+          error.errors.forEach((err) => {
+            if (err.path === "firstName" || err.path === "lastName") {
+              setFieldError("fullName", err.msg);
+            } else if (err.path === "email") {
+              setFieldError("email", err.msg);
+            } else if (err.path === "phone") {
+              setFieldError("phone", err.msg);
+            } else if (err.path === "password") {
+              setFieldError("password", err.msg);
+            }
+          });
+        }
+        setServerError(error.message || "Cannot connect to server");
         setShakeForm(true);
         setTimeout(() => setShakeForm(false), 500);
       }
