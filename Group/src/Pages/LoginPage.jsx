@@ -80,24 +80,43 @@ export default function LoginPage() {
         });
 
         const data = await response.json();
+        
+        console.log("Login response:", {
+          status: response.status,
+          ok: response.ok,
+          data: data,
+          hasToken: !!data.token,
+          tokenPreview: data.token ? data.token.substring(0, 30) + "..." : "NO TOKEN"
+        });
 
         if (!response.ok) {
           throw new Error(data.message || "Login failed");
         }
 
+        if (!data.token) {
+          throw new Error("No token received from server");
+        }
+
         setIsSubmittingAnim(false);
 
         if (values.rememberMe) {
+          console.log("Saving to localStorage");
           localStorage.setItem("token", data.token);
           localStorage.setItem("user", JSON.stringify(data.user));
           sessionStorage.removeItem("token");
           sessionStorage.removeItem("user");
         } else {
+          console.log("Saving to sessionStorage");
           sessionStorage.setItem("token", data.token);
           sessionStorage.setItem("user", JSON.stringify(data.user));
           localStorage.removeItem("token");
           localStorage.removeItem("user");
         }
+
+        console.log("After saving:", {
+          localStorage: localStorage.getItem("token") ? "✓" : "✗",
+          sessionStorage: sessionStorage.getItem("token") ? "✓" : "✗"
+        });
 
         refreshAuth();
         setSuccessMessage(true);

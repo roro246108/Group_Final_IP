@@ -25,27 +25,27 @@ async function authFetch(path, options = {}) {
 
 export const authApi = {
   register(payload) {
-    return authFetch("/auth/register", {
+    return authFetch("/api/auth/register", {
       method: "POST",
       body: payload,
     });
   },
 
   login(payload) {
-    return authFetch("/auth/login", {
+    return authFetch("/api/auth/login", {
       method: "POST",
       body: payload,
     });
   },
 
   logout() {
-    return authFetch("/auth/logout", {
+    return authFetch("/api/auth/logout", {
       method: "POST",
     });
   },
 
   me() {
-    return authFetch("/auth/me", {
+    return authFetch("/api/auth/me", {
       method: "GET",
     });
   },

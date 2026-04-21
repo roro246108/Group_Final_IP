@@ -1,9 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import visaimg from "../assets/Images/visa4.png";
 import img from "../assets/Images/PaymentFormPage.jpg";
 
 export default function PaymentPage({ room: propsRoom, nights: propsNights, total: propsTotal }) {
+  useEffect(() => {
+    const localToken = localStorage.getItem("token");
+    const sessionToken = sessionStorage.getItem("token");
+    console.log("Token Debug:", {
+      localStorage: localToken ? "✓ Found" : "✗ Not found",
+      sessionStorage: sessionToken ? "✓ Found" : "✗ Not found",
+      localToken: localToken?.substring(0, 20) + "...",
+      sessionToken: sessionToken?.substring(0, 20) + "...",
+    });
+  }, []);
 
   const location = useLocation();
   const locationState = location.state || {};
@@ -59,12 +69,17 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
   }
 
   try {
-    const token = localStorage.getItem("token");
+    const localToken = localStorage.getItem("token");
+    const sessionToken = sessionStorage.getItem("token");
+    const token = localToken || sessionToken;
 
     if (!token) {
-      setError("You must login first.");
+      setError("Authentication token not found. Please login again and make sure to check 'Remember Me' or use the same browser tab.");
+      console.error("No token found in localStorage or sessionStorage");
       return;
     }
+
+    console.log("Using token:", token.substring(0, 20) + "...");
 
     const response = await fetch("http://localhost:5050/api/bookings", {
       method: "POST",
@@ -96,6 +111,7 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
 
   } catch (err) {
     setError(err.message);
+    console.error("Payment error:", err);
   }
 };
   return (
