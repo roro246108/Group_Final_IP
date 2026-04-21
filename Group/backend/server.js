@@ -4,7 +4,7 @@ import connectDB from "./db.js";
 
 // routes
 
-import offerRoutes from "./routes/offerRoutes.js";
+
 
 
 // middlewares
@@ -20,7 +20,7 @@ globalMiddlewares(app);
 
 // routes
 
-app.use("/offers", offerRoutes);
+
 
 // test route
 app.get("/", (req, res) => {

@@ -5,6 +5,7 @@ import contactRoutes from "../routes/contactRoutes.js";
 import userPreferencesRoutes from "../routes/userPreferencesRoutes.js";
 import bookingRoutes from "../routes/bookingRouts.js";
 import authRoutes from "../routes/authRoutes.js";
+import offerRoutes from "../routes/offerRoutes.js";
 
 export const globalMiddlewares = (app) => {
   app.use(cors());
@@ -15,4 +16,6 @@ export const globalMiddlewares = (app) => {
   app.use("/api/auth", authRoutes);
   app.use("/api/reviews", reviewRoutes);
   app.use("/api/bookings", bookingRoutes);
+  app.use("/api/offers", offerRoutes);
 };
+
