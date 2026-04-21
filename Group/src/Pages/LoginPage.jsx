@@ -67,7 +67,7 @@ export default function LoginPage() {
       setIsSubmittingAnim(true);
 
       try {
-        const response = await fetch("http://localhost:5050/auth/login", {
+        const response = await fetch("http://localhost:5050/api/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -99,17 +99,11 @@ export default function LoginPage() {
           return;
         }
 
-        if (values.rememberMe) {
-          localStorage.setItem("token", data.token);
-          localStorage.setItem("user", JSON.stringify(data.user));
-          sessionStorage.removeItem("token");
-          sessionStorage.removeItem("user");
-        } else {
-          sessionStorage.setItem("token", data.token);
-          sessionStorage.setItem("user", JSON.stringify(data.user));
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-        }
+ localStorage.setItem("token", data.token);
+localStorage.setItem("user", JSON.stringify(data.user));
+
+sessionStorage.removeItem("token");
+sessionStorage.removeItem("user");
 
         refreshAuth();
         setSuccessMessage(true);

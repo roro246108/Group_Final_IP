@@ -3,7 +3,7 @@ import img from "../assets/Images/Visa4.png";
 import { useNavigate } from "react-router-dom";
 
 
-export default function PaymentForm({ room, nights, total }) {
+export default function PaymentForm({ room, nights, total, checkIn, checkOut }) {
 
   const navigate = useNavigate();
 
@@ -13,7 +13,12 @@ export default function PaymentForm({ room, nights, total }) {
     return;
   }
 
-  navigate("/payment", { state: { room, nights, total } });
+  if (!room?.roomName || !room?.price) {
+    alert("Room information is missing.");
+    return;
+  }
+
+  navigate("/payment", { state: { room, nights, total, checkIn, checkOut } });
 };
   
   return (

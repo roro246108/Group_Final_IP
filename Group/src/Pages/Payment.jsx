@@ -1,8 +1,18 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import visaimg from "../assets/Images/visa4.png";
 import img from "../assets/Images/PaymentFormPage.jpg";
 
-export default function PaymentPage({ room, nights, total }) {
+export default function PaymentPage({ room: propsRoom, nights: propsNights, total: propsTotal }) {
+
+  const location = useLocation();
+  const locationState = location.state || {};
+  
+  const room = locationState.room || propsRoom;
+  const nights = locationState.nights || propsNights;
+  const total = locationState.total || propsTotal;
+  const checkIn = locationState.checkIn || "";
+  const checkOut = locationState.checkOut || "";
 
   const [email, setEmail] = useState("");
   const [cardNumber, setCardNumber] = useState("");
@@ -43,50 +53,51 @@ export default function PaymentPage({ room, nights, total }) {
 
   // backend section
   const handlePayment = async () => {
-    if (!cardNumber || !expiry || !cvv || !name || !email || !phone) {
-      setError("Please fill in all fields first.");
+  if (!cardNumber || !expiry || !cvv || !name || !email || !phone) {
+    setError("Please fill in all fields first.");
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("You must login first.");
       return;
     }
 
-    try {
-      const token = localStorage.getItem("token");
+    const response = await fetch("http://localhost:5050/api/bookings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        phone,
+        roomName: room?.roomName || "Room",
+        price: room?.price || 0,
+        nights: nights || 1,
+        total: total || 0,
+        checkIn: checkIn || new Date().toISOString(),
+        checkOut: checkOut || new Date().toISOString()
+      })
+    });
 
-      if (!token) {
-        setError("You must login first.");
-        return;
-      }
+    const data = await response.json();
 
-      const response = await fetch("http://localhost:5050/bookings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          phone,
-
-          roomName: room?.roomName || "Room",
-          price: room?.price || 0,
-          nights: nights || 1,
-          total: total || 0
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message);
-      }
-
-      setError("");
-      alert("Booking successful ");
-    } catch (err) {
-      setError(err.message);
+    if (!response.ok) {
+      throw new Error(data.message);
     }
-  };
 
+    setError("");
+    alert("Booking successful! Your reservation has been saved.");
+
+  } catch (err) {
+    setError(err.message);
+  }
+};
   return (
     <div className="min-h-screen w-full bg-[#edf7ff] flex items-center justify-center py-20">
 

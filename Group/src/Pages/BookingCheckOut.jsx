@@ -107,6 +107,8 @@ export default function RoomBooking() {
   room={room}   
   nights={nights}
   total={total}
+  checkIn={checkIn}
+  checkOut={checkOut}
 />
 
           </div>
