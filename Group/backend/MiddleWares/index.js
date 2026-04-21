@@ -9,10 +9,9 @@ import authRoutes from "../routes/auth.js";
 export const globalMiddlewares = (app) => {
   app.use(cors());
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
   app.use("/api/contact-messages", contactRoutes);
   app.use("/api/admin/preferences", userPreferencesRoutes);
-};
-  app.use(express.urlencoded({ extended: true }));
   app.use("/api/auth", authRoutes);
   app.use("/api/reviews", reviewRoutes);
   app.use("/api/bookings", bookingRoutes);
