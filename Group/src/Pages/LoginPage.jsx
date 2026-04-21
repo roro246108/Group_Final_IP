@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import bgImage from "../assets/Images/register-bg.jpg";
 import { useAuth } from "../Context/AuthContext";
+import { authApi } from "../services/authApi";
 
 const formContainer = {
   hidden: {},
@@ -35,8 +36,8 @@ const formItem = {
 };
 
 export default function LoginPage() {
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { refreshAuth } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmittingAnim, setIsSubmittingAnim] = useState(false);
@@ -61,33 +62,89 @@ export default function LoginPage() {
         .required("Email is required"),
       password: Yup.string().required("Password is required"),
     }),
-    onSubmit: async (values) => {
+
+    onSubmit: async (values, { setFieldError }) => {
       setServerError("");
       setIsSubmittingAnim(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 1400));
+      try {
+        const response = await fetch("http://localhost:5050/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: values.email,
+            password: values.password,
+          }),
+        });
 
-      const result = login(values.email, values.password);
+        const data = await response.json();
+        
+        console.log("Login response:", {
+          status: response.status,
+          ok: response.ok,
+          data: data,
+          hasToken: !!data.token,
+          tokenPreview: data.token ? data.token.substring(0, 30) + "..." : "NO TOKEN"
+        });
 
-      setIsSubmittingAnim(false);
+        if (!response.ok) {
+          throw new Error(data.message || "Login failed");
+        }
 
-      if (!result.success) {
-        setServerError(result.message);
+        if (!data.token) {
+          throw new Error("No token received from server");
+        }
+
+        setIsSubmittingAnim(false);
+
+        if (values.rememberMe) {
+          console.log("Saving to localStorage");
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("user");
+        } else {
+          console.log("Saving to sessionStorage");
+          sessionStorage.setItem("token", data.token);
+          sessionStorage.setItem("user", JSON.stringify(data.user));
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
+
+        console.log("After saving:", {
+          localStorage: localStorage.getItem("token") ? "✓" : "✗",
+          sessionStorage: sessionStorage.getItem("token") ? "✓" : "✗"
+        });
+
+        refreshAuth();
+        setSuccessMessage(true);
+
+        setTimeout(() => {
+          setSuccessMessage(false);
+
+          if (data.user.role === "admin") {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 1200);
+      } catch (error) {
+        setIsSubmittingAnim(false);
+        if (error.errors && Array.isArray(error.errors)) {
+          error.errors.forEach((err) => {
+            if (err.path === "email") {
+              setFieldError("email", err.msg);
+            } else if (err.path === "password") {
+              setFieldError("password", err.msg);
+            }
+          });
+        }
+        setServerError(error.message || "Cannot connect to server");
         setShakeForm(true);
         setTimeout(() => setShakeForm(false), 500);
-        return;
       }
-
-      setSuccessMessage(true);
-
-      setTimeout(() => {
-        setSuccessMessage(false);
-        if (result.user.role === "admin") {
-          navigate("/admin/dashboard");
-        } else {
-          navigate("/");
-        }
-      }, 1200);
     },
   });
 

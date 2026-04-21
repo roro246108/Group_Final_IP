@@ -1,10 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import visaimg from "../assets/Images/visa4.png";
-import img from "../assets//Images/PaymentFormPage.jpg";
+import img from "../assets/Images/PaymentFormPage.jpg";
 
-export default function PaymentPage() {
+export default function PaymentPage({ room: propsRoom, nights: propsNights, total: propsTotal }) {
+  useEffect(() => {
+    const localToken = localStorage.getItem("token");
+    const sessionToken = sessionStorage.getItem("token");
+    console.log("Token Debug:", {
+      localStorage: localToken ? "✓ Found" : "✗ Not found",
+      sessionStorage: sessionToken ? "✓ Found" : "✗ Not found",
+      localToken: localToken?.substring(0, 20) + "...",
+      sessionToken: sessionToken?.substring(0, 20) + "...",
+    });
+  }, []);
 
+  const location = useLocation();
+  const locationState = location.state || {};
   
+  const room = locationState.room || propsRoom;
+  const nights = locationState.nights || propsNights;
+  const total = locationState.total || propsTotal;
+  const checkIn = locationState.checkIn || "";
+  const checkOut = locationState.checkOut || "";
+
   const [email, setEmail] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -13,6 +32,7 @@ export default function PaymentPage() {
   const [error, setError] = useState("");
   const [phone, setPhone] = useState("");
 
+  
   const handleCardNumber = (e) => {
     const value = e.target.value;
     setCardNumber(value);
@@ -41,15 +61,59 @@ export default function PaymentPage() {
     else setError("");
   };
 
-  const handlePayment = () => {
-    if (!cardNumber || !expiry || !cvv || !name || !email || !phone) {
-      setError("Please fill in all fields first.");
+  // backend section
+  const handlePayment = async () => {
+  if (!cardNumber || !expiry || !cvv || !name || !email || !phone) {
+    setError("Please fill in all fields first.");
+    return;
+  }
+
+  try {
+    const localToken = localStorage.getItem("token");
+    const sessionToken = sessionStorage.getItem("token");
+    const token = localToken || sessionToken;
+
+    if (!token) {
+      setError("Authentication token not found. Please login again and make sure to check 'Remember Me' or use the same browser tab.");
+      console.error("No token found in localStorage or sessionStorage");
       return;
     }
-    setError("");
-    alert("Payment successful");
-  };
 
+    console.log("Using token:", token.substring(0, 20) + "...");
+
+    const response = await fetch("http://localhost:5050/api/bookings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        phone,
+        roomName: room?.roomName || "Room",
+        price: room?.price || 0,
+        nights: nights || 1,
+        total: total || 0,
+        checkIn: checkIn || new Date().toISOString(),
+        checkOut: checkOut || new Date().toISOString()
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message);
+    }
+
+    setError("");
+    alert("Booking successful! Your reservation has been saved.");
+
+  } catch (err) {
+    setError(err.message);
+    console.error("Payment error:", err);
+  }
+};
   return (
     <div className="min-h-screen w-full bg-[#edf7ff] flex items-center justify-center py-20">
 
@@ -58,17 +122,13 @@ export default function PaymentPage() {
 
         {/* IMAGE */}
         <div className="md:w-1/2">
-          <img
-            src={img}
-            alt="Room"
-            className="w-full h-full object-cover"
-          />
+          <img src={img} alt="Room" className="w-full h-full object-cover" />
         </div>
 
         {/* FORM */}
         <div className="md:w-1/2 bg-white p-12 flex flex-col justify-center text-[#1e3a8a]">
 
-          <h2 className="text-3xl font-bold mb-8 text-center ">
+          <h2 className="text-3xl font-bold mb-8 text-center">
             Payment Details
           </h2>
 
@@ -88,7 +148,7 @@ export default function PaymentPage() {
             type="email"
             placeholder="Email"
             value={email}
-            onChange={(e)=>setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full border p-3 rounded-lg mb-4"
           />
 
@@ -96,7 +156,7 @@ export default function PaymentPage() {
             type="text"
             placeholder="Phone Number"
             value={phone}
-            onChange={(e)=>setPhone(e.target.value)}
+            onChange={(e) => setPhone(e.target.value)}
             className="w-full border p-3 rounded-lg mb-6"
           />
 
@@ -104,19 +164,14 @@ export default function PaymentPage() {
             Card Details
           </h3>
 
-          {/*  Bigger logo */}
-          <img 
-            src={visaimg} 
-            alt="Card Logos" 
-            className="w-[280px] h-auto mb-4"
-          />
+          <img src={visaimg} alt="Card Logos" className="w-[280px] mb-4" />
 
           <input
             type="text"
             placeholder="Card Number"
             value={cardNumber}
             onChange={handleCardNumber}
-            className="w-full border p-3 rounded-lg mb-4 "
+            className="w-full border p-3 rounded-lg mb-4"
           />
 
           <div className="flex gap-4 mb-4">

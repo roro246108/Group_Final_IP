@@ -23,8 +23,8 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
+import { apiDelete, apiGet, apiPost } from "../services/apiClient";
 
-// ── Seed data so the page looks alive on first load ──
 const INITIAL_REVIEWS = [
   {
     id: 1,
@@ -36,7 +36,7 @@ const INITIAL_REVIEWS = [
     helpful: 24,
     unhelpful: 1,
     verified: true,
-    title: "A Dream Stay — Truly World-Class",
+    title: "A Dream Stay - Truly World-Class",
     branch: "Beachfront Resort",
   },
   {
@@ -95,7 +95,7 @@ const INITIAL_REVIEWS = [
     id: 6,
     name: "Marcus Thompson",
     comment:
-      "Stayed for a business trip. The executive lounge was well-equipped and quiet — perfect for getting work done. Room was clean and modern. The fitness center is top-notch with Peloton bikes.",
+      "Stayed for a business trip. The executive lounge was well-equipped and quiet - perfect for getting work done. Room was clean and modern. The fitness center is top-notch with Peloton bikes.",
     rating: 4,
     date: "2026-02-08",
     helpful: 14,
@@ -143,7 +143,24 @@ const BRANCHES = [
   "Lakeside Retreat",
 ];
 
-// ── Toast notification component ──
+function normalizeReview(review) {
+  return {
+    id: review._id ?? review.id,
+    _id: review._id,
+    name: review.name ?? "Anonymous Guest",
+    title: review.title?.trim() || "Untitled Review",
+    branch: review.branch ?? "",
+    comment: review.comment ?? "",
+    rating: Number(review.rating) || 0,
+    date: review.createdAt
+      ? new Date(review.createdAt).toISOString().split("T")[0]
+      : review.date ?? new Date().toISOString().split("T")[0],
+    helpful: Number(review.helpful) || 0,
+    unhelpful: Number(review.unhelpful) || 0,
+    verified: typeof review.verified === "boolean" ? review.verified : Boolean(review.userId),
+  };
+}
+
 function Toast({ message, type, onClose }) {
   useEffect(() => {
     const timer = setTimeout(onClose, 3500);
@@ -173,9 +190,7 @@ function Toast({ message, type, onClose }) {
   );
 }
 
-// ── Main component ──
 export default function ReviewRating() {
-  // ── State ──
   const [reviews, setReviews] = useState(INITIAL_REVIEWS);
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
@@ -183,25 +198,44 @@ export default function ReviewRating() {
   const [comment, setComment] = useState("");
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
-
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterRating, setFilterRating] = useState(0); // 0 = all
+  const [filterRating, setFilterRating] = useState(0);
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
-
   const [editingId, setEditingId] = useState(null);
   const [editComment, setEditComment] = useState("");
   const [editRating, setEditRating] = useState(0);
-
   const [toast, setToast] = useState(null);
   const [showForm, setShowForm] = useState(false);
-
   const formRef = useRef(null);
 
-  // ── Helpers ──
   const showToast = useCallback((message, type = "success") => {
     setToast({ message, type, key: Date.now() });
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadReviews = async () => {
+      try {
+        const data = await apiGet("/reviews");
+        if (!isMounted) return;
+
+        if (Array.isArray(data) && data.length > 0) {
+          setReviews(data.map(normalizeReview));
+        }
+      } catch {
+        if (isMounted) {
+          showToast("Showing sample reviews while the server is unavailable.", "info");
+        }
+      }
+    };
+
+    loadReviews();
+    return () => {
+      isMounted = false;
+    };
+  }, [showToast]);
 
   const average = useMemo(() => {
     if (reviews.length === 0) return 0;
@@ -212,12 +246,11 @@ export default function ReviewRating() {
   const ratingDistribution = useMemo(() => {
     const dist = [0, 0, 0, 0, 0];
     reviews.forEach((r) => {
-      dist[r.rating - 1]++;
+      if (r.rating >= 1 && r.rating <= 5) dist[r.rating - 1] += 1;
     });
     return dist;
   }, [reviews]);
 
-  // Filter → search → sort pipeline
   const processedReviews = useMemo(() => {
     let result = [...reviews];
 
@@ -264,44 +297,50 @@ export default function ReviewRating() {
     currentPage * REVIEWS_PER_PAGE
   );
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [filterRating, searchQuery, sortBy]);
 
-  // ── CRUD operations ──
-  function addReview() {
+  async function addReview() {
     if (!name.trim() || !comment.trim() || rating === 0 || !branch) {
       showToast("Please fill in all fields, select a branch, and choose a rating.", "error");
       return;
     }
 
-    const newReview = {
-      id: Date.now(),
-      name: name.trim(),
-      title: title.trim() || "Untitled Review",
-      branch,
-      comment: comment.trim(),
-      rating,
-      date: new Date().toISOString().split("T")[0],
-      helpful: 0,
-      unhelpful: 0,
-      verified: false,
-    };
+    try {
+      const createdReview = await apiPost("/reviews", {
+        name: name.trim(),
+        title: title.trim() || "Untitled Review",
+        branch,
+        comment: comment.trim(),
+        rating,
+      });
 
-    setReviews((prev) => [newReview, ...prev]);
-    setName("");
-    setTitle("");
-    setBranch("");
-    setComment("");
-    setRating(0);
-    setShowForm(false);
-    showToast("Your review has been published!");
+      setReviews((prev) => [normalizeReview(createdReview), ...prev]);
+      setName("");
+      setTitle("");
+      setBranch("");
+      setComment("");
+      setRating(0);
+      setHover(0);
+      setShowForm(false);
+      showToast("Your review has been published!");
+    } catch (error) {
+      showToast(error.message || "Unable to publish review right now.", "error");
+    }
   }
 
-  function deleteReview(id) {
-    setReviews((prev) => prev.filter((r) => r.id !== id));
-    showToast("Review deleted successfully.");
+  async function deleteReview(review) {
+    try {
+      if (review._id) {
+        await apiDelete(`/reviews/${review._id}`);
+      }
+
+      setReviews((prev) => prev.filter((r) => r.id !== review.id));
+      showToast("Review deleted successfully.");
+    } catch (error) {
+      showToast(error.message || "Unable to delete review.", "error");
+    }
   }
 
   function startEdit(review) {
@@ -312,6 +351,7 @@ export default function ReviewRating() {
 
   function saveEdit(id) {
     if (!editComment.trim()) return;
+
     setReviews((prev) =>
       prev.map((r) =>
         r.id === id ? { ...r, comment: editComment.trim(), rating: editRating } : r
@@ -323,13 +363,10 @@ export default function ReviewRating() {
 
   function vote(id, type) {
     setReviews((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, [type]: r[type] + 1 } : r
-      )
+      prev.map((r) => (r.id === id ? { ...r, [type]: r[type] + 1 } : r))
     );
   }
 
-  // ── Sub-components (inline) ──
   function InteractiveStars({ value, hoverValue, onSelect, onHover, onLeave, size = 28 }) {
     return (
       <div className="flex gap-1" onMouseLeave={onLeave}>
@@ -366,21 +403,15 @@ export default function ReviewRating() {
           <Star
             key={i}
             size={size}
-            className={
-              i <= value
-                ? "fill-amber-400 text-amber-400"
-                : i - 0.5 <= value
-                ? "fill-amber-200 text-amber-400"
-                : "text-sky-300"
-            }
+            className={i <= value ? "fill-amber-400 text-amber-400" : "text-sky-300"}
           />
         ))}
       </div>
     );
   }
 
-  function Avatar({ name: n }) {
-    const initials = n
+  function Avatar({ name: reviewName }) {
+    const initials = reviewName
       .split(" ")
       .map((w) => w[0])
       .join("")
@@ -397,7 +428,7 @@ export default function ReviewRating() {
       "bg-sky-500",
       "bg-blue-950",
     ];
-    const color = colors[n.length % colors.length];
+    const color = colors[reviewName.length % colors.length];
 
     return (
       <div
@@ -408,10 +439,8 @@ export default function ReviewRating() {
     );
   }
 
-  // ── Render ──
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-sky-50 to-teal-50 w-full">
-      {/* Toast */}
       {toast && (
         <Toast
           key={toast.key}
@@ -421,11 +450,10 @@ export default function ReviewRating() {
         />
       )}
 
-      {/* Inline keyframe for toast + override global dark button bg */}
       <style>{`
         @keyframes slideIn {
           from { opacity: 0; transform: translateX(80px); }
-          to   { opacity: 1; transform: translateX(0); }
+          to { opacity: 1; transform: translateX(0); }
         }
         .reviews-page button {
           background-color: transparent;
@@ -434,7 +462,6 @@ export default function ReviewRating() {
       `}</style>
 
       <div className="max-w-5xl mx-auto px-4 py-12 sm:px-6 lg:px-8 reviews-page">
-        {/* ── Hero Header ── */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 bg-sky-100 text-teal-700 text-xs font-semibold px-4 py-1.5 rounded-full mb-4 tracking-wide uppercase">
             <MessageSquare size={14} />
@@ -449,9 +476,7 @@ export default function ReviewRating() {
           </p>
         </div>
 
-        {/* ── Summary Row ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          {/* Overall score */}
           <div className="bg-white rounded-2xl shadow-md border border-sky-100 p-6 flex flex-col items-center justify-center">
             <p className="text-xs font-semibold text-sky-500 uppercase tracking-widest mb-2">
               Overall Rating
@@ -470,7 +495,6 @@ export default function ReviewRating() {
             </p>
           </div>
 
-          {/* Distribution */}
           <div className="bg-white rounded-2xl shadow-md border border-sky-100 p-6 col-span-1 md:col-span-2">
             <p className="text-xs font-semibold text-sky-500 uppercase tracking-widest mb-4">
               Rating Breakdown
@@ -490,10 +514,7 @@ export default function ReviewRating() {
                     <span className="text-sm font-medium text-blue-800 w-6 text-right">
                       {star}
                     </span>
-                    <Star
-                      size={14}
-                      className="fill-amber-400 text-amber-400 shrink-0"
-                    />
+                    <Star size={14} className="fill-amber-400 text-amber-400 shrink-0" />
                     <div className="flex-1 h-3 bg-sky-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-amber-400 rounded-full transition-all duration-700 ease-out"
@@ -518,7 +539,6 @@ export default function ReviewRating() {
           </div>
         </div>
 
-        {/* ── Quick Stats ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
           {[
             {
@@ -535,7 +555,7 @@ export default function ReviewRating() {
                       (reviews.filter((r) => r.rating >= 4).length / reviews.length) *
                         100
                     ) + "%"
-                  : "—",
+                  : "-",
             },
             {
               icon: <ShieldCheck size={20} className="text-sky-500" />,
@@ -561,7 +581,6 @@ export default function ReviewRating() {
           ))}
         </div>
 
-        {/* ── Write a Review CTA / Form ── */}
         <div ref={formRef} className="mb-10">
           {!showForm ? (
             <button
@@ -595,7 +614,7 @@ export default function ReviewRating() {
                   <input
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(event) => setName(event.target.value)}
                     maxLength={50}
                     className="w-full border border-sky-200 rounded-xl px-4 py-3 text-blue-900 bg-sky-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-shadow"
                     placeholder="e.g. Jane Doe"
@@ -608,7 +627,7 @@ export default function ReviewRating() {
                   <input
                     type="text"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(event) => setTitle(event.target.value)}
                     maxLength={80}
                     className="w-full border border-sky-200 rounded-xl px-4 py-3 text-blue-900 bg-sky-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-shadow"
                     placeholder="Summarize your experience"
@@ -622,12 +641,14 @@ export default function ReviewRating() {
                 </label>
                 <select
                   value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
+                  onChange={(event) => setBranch(event.target.value)}
                   className="w-full border border-sky-200 rounded-xl px-4 py-3 text-blue-900 bg-sky-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-shadow"
                 >
-                  <option value="">Select a branch…</option>
-                  {BRANCHES.map((b) => (
-                    <option key={b} value={b}>{b}</option>
+                  <option value="">Select a branch...</option>
+                  {BRANCHES.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -638,20 +659,18 @@ export default function ReviewRating() {
                 </label>
                 <textarea
                   value={comment}
-                  onChange={(e) => {
-                    if (e.target.value.length <= MAX_COMMENT_LENGTH) {
-                      setComment(e.target.value);
+                  onChange={(event) => {
+                    if (event.target.value.length <= MAX_COMMENT_LENGTH) {
+                      setComment(event.target.value);
                     }
                   }}
                   rows="4"
                   className="w-full border border-sky-200 rounded-xl px-4 py-3 text-blue-900 bg-sky-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-shadow resize-none"
-                  placeholder="Tell us about your stay — what stood out, what could be better…"
+                  placeholder="Tell us about your stay - what stood out, what could be better..."
                 />
                 <p
                   className={`text-xs mt-1 text-right ${
-                    comment.length > MAX_COMMENT_LENGTH * 0.9
-                      ? "text-red-500"
-                      : "text-sky-500"
+                    comment.length > MAX_COMMENT_LENGTH * 0.9 ? "text-red-500" : "text-sky-500"
                   }`}
                 >
                   {comment.length}/{MAX_COMMENT_LENGTH}
@@ -691,9 +710,7 @@ export default function ReviewRating() {
           )}
         </div>
 
-        {/* ── Toolbar: search, sort, filter ── */}
         <div className="bg-white rounded-2xl shadow-md border border-sky-100 p-4 mb-6 flex flex-col sm:flex-row gap-3">
-          {/* Search */}
           <div className="relative flex-1">
             <Search
               size={16}
@@ -702,18 +719,17 @@ export default function ReviewRating() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search reviews…"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search reviews..."
               className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
             />
           </div>
 
-          {/* Sort */}
           <div className="flex items-center gap-2">
             <ArrowUpDown size={16} className="text-sky-400 shrink-0" />
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(event) => setSortBy(event.target.value)}
               className="bg-sky-50 border border-sky-200 rounded-xl text-sm text-blue-900 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="newest">Newest First</option>
@@ -724,40 +740,39 @@ export default function ReviewRating() {
             </select>
           </div>
 
-          {/* Quick rating filter pills */}
           <div className="flex items-center gap-1.5">
             <Filter size={16} className="text-sky-400 shrink-0" />
-            {[5, 4, 3, 2, 1].map((s) => (
+            {[5, 4, 3, 2, 1].map((stars) => (
               <button
-                key={s}
-                onClick={() => setFilterRating(filterRating === s ? 0 : s)}
+                key={stars}
+                onClick={() => setFilterRating(filterRating === stars ? 0 : stars)}
                 className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${
-                  filterRating === s
+                  filterRating === stars
                     ? "bg-teal-600 text-white"
                     : "bg-sky-100 text-blue-800 hover:bg-sky-200"
                 }`}
               >
-                {s}
-                <Star size={10} className={filterRating === s ? "fill-white text-white" : "fill-amber-400 text-amber-400"} />
+                {stars}
+                <Star
+                  size={10}
+                  className={
+                    filterRating === stars
+                      ? "fill-white text-white"
+                      : "fill-amber-400 text-amber-400"
+                  }
+                />
               </button>
             ))}
           </div>
         </div>
 
-        {/* ── Results count ── */}
         <p className="text-sm text-teal-600 mb-4 px-1">
-          Showing{" "}
-          <span className="font-semibold text-blue-900">
-            {processedReviews.length}
-          </span>{" "}
+          Showing <span className="font-semibold text-blue-900">{processedReviews.length}</span>{" "}
           {processedReviews.length === 1 ? "review" : "reviews"}
           {filterRating > 0 && (
             <span>
               {" "}
-              with{" "}
-              <span className="font-semibold text-amber-600">
-                {filterRating} stars
-              </span>
+              with <span className="font-semibold text-amber-600">{filterRating} stars</span>
             </span>
           )}
           {searchQuery.trim() && (
@@ -770,7 +785,6 @@ export default function ReviewRating() {
           )}
         </p>
 
-        {/* ── Reviews List ── */}
         <div className="space-y-5">
           {processedReviews.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-md border border-sky-100 p-12 text-center">
@@ -788,21 +802,18 @@ export default function ReviewRating() {
                   key={review.id}
                   className="bg-white rounded-2xl shadow-md border border-sky-100 p-6 hover:shadow-lg transition-shadow"
                 >
-                  {/* Header */}
                   <div className="flex items-start gap-4">
                     <Avatar name={review.name} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-blue-950">
-                          {review.name}
-                        </h3>
+                        <h3 className="font-bold text-blue-950">{review.name}</h3>
                         {review.verified && (
                           <span className="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                             <ShieldCheck size={12} /> Verified Guest
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         {isEditing ? (
                           <InteractiveStars
                             value={editRating}
@@ -830,7 +841,6 @@ export default function ReviewRating() {
                         )}
                       </div>
                     </div>
-                    {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
                       {isEditing ? (
                         <>
@@ -859,7 +869,7 @@ export default function ReviewRating() {
                             <Edit3 size={16} />
                           </button>
                           <button
-                            onClick={() => deleteReview(review.id)}
+                            onClick={() => deleteReview(review)}
                             className="p-1.5 rounded-lg text-sky-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                             aria-label="Delete"
                           >
@@ -870,18 +880,16 @@ export default function ReviewRating() {
                     </div>
                   </div>
 
-                  {/* Title */}
                   {review.title && !isEditing && (
                     <h4 className="font-semibold text-blue-900 mt-3 text-[15px]">
                       {review.title}
                     </h4>
                   )}
 
-                  {/* Body */}
                   {isEditing ? (
                     <textarea
                       value={editComment}
-                      onChange={(e) => setEditComment(e.target.value)}
+                      onChange={(event) => setEditComment(event.target.value)}
                       rows="3"
                       className="w-full mt-3 border border-sky-200 rounded-xl px-4 py-3 text-blue-900 bg-sky-50 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                     />
@@ -891,12 +899,9 @@ export default function ReviewRating() {
                     </p>
                   )}
 
-                  {/* Footer — votes */}
                   {!isEditing && (
                     <div className="flex items-center gap-4 mt-4 pt-3 border-t border-sky-100">
-                      <span className="text-xs text-sky-500">
-                        Was this helpful?
-                      </span>
+                      <span className="text-xs text-sky-500">Was this helpful?</span>
                       <button
                         onClick={() => vote(review.id, "helpful")}
                         className="flex items-center gap-1 text-xs text-teal-500 hover:text-teal-600 transition-colors"
@@ -919,17 +924,16 @@ export default function ReviewRating() {
           )}
         </div>
 
-        {/* ── Pagination ── */}
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 mt-8">
             <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
               disabled={currentPage === 1}
               className="p-2 rounded-xl bg-white border border-sky-200 hover:bg-sky-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
               <ChevronLeft size={18} />
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
@@ -943,7 +947,7 @@ export default function ReviewRating() {
               </button>
             ))}
             <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
               disabled={currentPage === totalPages}
               className="p-2 rounded-xl bg-white border border-sky-200 hover:bg-sky-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
@@ -952,13 +956,12 @@ export default function ReviewRating() {
           </div>
         )}
 
-        {/* ── Footer note ── */}
         <p className="text-center text-xs text-sky-500 mt-10">
           All reviews are from real guests. Verified badges indicate confirmed
           bookings through LuxeStay.
         </p>
       </div>
-       <Footer />
+      <Footer />
     </div>
   );
 }

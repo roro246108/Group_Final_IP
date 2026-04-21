@@ -58,8 +58,8 @@ export default function AdminDashboard() {
     setTasks(updated);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/");
   };
 

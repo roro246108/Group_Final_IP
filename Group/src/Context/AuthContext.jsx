@@ -1,95 +1,112 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { authApi } from "../services/authApi";
 
 const AuthContext = createContext();
 
-function safeParse(key, fallbackValue) {
+function getStoredUser() {
   try {
-    const storedValue = localStorage.getItem(key);
-    if (!storedValue || storedValue === "undefined" || storedValue === "null") {
-      return fallbackValue;
+    const localUser = localStorage.getItem("user");
+    const sessionUser = sessionStorage.getItem("user");
+
+    const storedUser = localUser || sessionUser;
+
+    if (!storedUser || storedUser === "undefined" || storedUser === "null") {
+      return null;
     }
-    return JSON.parse(storedValue);
+
+    return JSON.parse(storedUser);
   } catch (error) {
-    console.error(`Error parsing localStorage key "${key}":`, error);
-    localStorage.removeItem(key);
-    return fallbackValue;
+    console.error("Error parsing stored user:", error);
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("user");
+    return null;
   }
 }
 
+function getStoredToken() {
+  return localStorage.getItem("token") || sessionStorage.getItem("token") || null;
+}
+
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => safeParse("users", []));
-  const [currentUser, setCurrentUser] = useState(() =>
-    safeParse("currentUser", null)
-  );
+  const [currentUser, setCurrentUser] = useState(getStoredUser);
+  const [token, setToken] = useState(getStoredToken);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      localStorage.setItem("users", JSON.stringify(users));
-    } catch (error) {
-      console.error("Error saving users:", error);
-    }
-  }, [users]);
-
-  useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem("currentUser");
-      }
-    } catch (error) {
-      console.error("Error saving currentUser:", error);
-    }
-  }, [currentUser]);
-
-  const register = (newUser) => {
-    const exists = users.some(
-      (user) => user.email.toLowerCase() === newUser.email.toLowerCase()
-    );
-
-    if (exists) {
-      return { success: false, message: "Email already exists" };
-    }
-
-    const savedUser = {
-      ...newUser,
-      role: newUser.email.toLowerCase() === "admin@hotel.com" ? "admin" : "user",
+    const syncAuthState = () => {
+      setCurrentUser(getStoredUser());
+      setToken(getStoredToken());
     };
 
-    setUsers((prev) => [...prev, savedUser]);
-    setCurrentUser(savedUser);
+    window.addEventListener("storage", syncAuthState);
+    return () => window.removeEventListener("storage", syncAuthState);
+  }, []);
 
-    return { success: true, user: savedUser };
-  };
+  useEffect(() => {
+    let isMounted = true;
 
-  const login = (email, password) => {
-    const foundUser = users.find(
-      (user) =>
-        user.email.toLowerCase() === email.toLowerCase() &&
-        user.password === password
-    );
+    const hydrate = async () => {
+      const storedToken = getStoredToken();
+      if (!storedToken) {
+        if (isMounted) setIsAuthLoading(false);
+        return;
+      }
 
-    if (!foundUser) {
-      return { success: false, message: "Invalid email or password" };
-    }
+      try {
+        const result = await authApi.me();
+        const nextUser = result?.user ?? null;
+        if (nextUser) {
+          const storage = localStorage.getItem("token") ? localStorage : sessionStorage;
+          storage.setItem("user", JSON.stringify(nextUser));
+        }
+        if (isMounted) {
+          setCurrentUser(nextUser);
+          setToken(storedToken);
+        }
+      } catch {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        if (isMounted) {
+          setCurrentUser(null);
+          setToken(null);
+        }
+      } finally {
+        if (isMounted) setIsAuthLoading(false);
+      }
+    };
 
-    setCurrentUser(foundUser);
-    return { success: true, user: foundUser };
-  };
+    hydrate();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+
     setCurrentUser(null);
+    setToken(null);
+  };
+
+  const refreshAuth = () => {
+    setCurrentUser(getStoredUser());
+    setToken(getStoredToken());
   };
 
   return (
     <AuthContext.Provider
       value={{
-        users,
         currentUser,
-        register,
-        login,
+        token,
         logout,
-        isAuthenticated: !!currentUser,
+        refreshAuth,
+        isAuthLoading,
+        isAuthenticated: !!token && !!currentUser,
       }}
     >
       {children}

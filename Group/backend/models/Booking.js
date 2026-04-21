@@ -1,18 +1,20 @@
+// models/Booking.js
 import mongoose from "mongoose";
 
 const bookingSchema = new mongoose.Schema({
-  name: String,
-  email: String,
-  phone: String,
-
-  cardNumber: String,
-  expiry: String,
-  cvv: String,
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  phone: { type: String, required: true },
 
   roomName: String,
   price: Number,
   nights: Number,
   total: Number,
+  
+  checkIn: Date,
+  checkOut: Date,
+
+  userId: String,
 
   createdAt: {
     type: Date,
