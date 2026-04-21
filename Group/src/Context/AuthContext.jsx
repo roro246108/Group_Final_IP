@@ -2,94 +2,67 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 const AuthContext = createContext();
 
-function safeParse(key, fallbackValue) {
+function getStoredUser() {
   try {
-    const storedValue = localStorage.getItem(key);
-    if (!storedValue || storedValue === "undefined" || storedValue === "null") {
-      return fallbackValue;
+    const localUser = localStorage.getItem("user");
+    const sessionUser = sessionStorage.getItem("user");
+
+    const storedUser = localUser || sessionUser;
+
+    if (!storedUser || storedUser === "undefined" || storedUser === "null") {
+      return null;
     }
-    return JSON.parse(storedValue);
+
+    return JSON.parse(storedUser);
   } catch (error) {
-    console.error(`Error parsing localStorage key "${key}":`, error);
-    localStorage.removeItem(key);
-    return fallbackValue;
+    console.error("Error parsing stored user:", error);
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("user");
+    return null;
   }
 }
 
+function getStoredToken() {
+  return localStorage.getItem("token") || sessionStorage.getItem("token") || null;
+}
+
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => safeParse("users", []));
-  const [currentUser, setCurrentUser] = useState(() =>
-    safeParse("currentUser", null)
-  );
+  const [currentUser, setCurrentUser] = useState(getStoredUser);
+  const [token, setToken] = useState(getStoredToken);
 
   useEffect(() => {
-    try {
-      localStorage.setItem("users", JSON.stringify(users));
-    } catch (error) {
-      console.error("Error saving users:", error);
-    }
-  }, [users]);
-
-  useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem("currentUser");
-      }
-    } catch (error) {
-      console.error("Error saving currentUser:", error);
-    }
-  }, [currentUser]);
-
-  const register = (newUser) => {
-    const exists = users.some(
-      (user) => user.email.toLowerCase() === newUser.email.toLowerCase()
-    );
-
-    if (exists) {
-      return { success: false, message: "Email already exists" };
-    }
-
-    const savedUser = {
-      ...newUser,
-      role: newUser.email.toLowerCase() === "admin@hotel.com" ? "admin" : "user",
+    const syncAuthState = () => {
+      setCurrentUser(getStoredUser());
+      setToken(getStoredToken());
     };
 
-    setUsers((prev) => [...prev, savedUser]);
-    setCurrentUser(savedUser);
-
-    return { success: true, user: savedUser };
-  };
-
-  const login = (email, password) => {
-    const foundUser = users.find(
-      (user) =>
-        user.email.toLowerCase() === email.toLowerCase() &&
-        user.password === password
-    );
-
-    if (!foundUser) {
-      return { success: false, message: "Invalid email or password" };
-    }
-
-    setCurrentUser(foundUser);
-    return { success: true, user: foundUser };
-  };
+    window.addEventListener("storage", syncAuthState);
+    return () => window.removeEventListener("storage", syncAuthState);
+  }, []);
 
   const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+
     setCurrentUser(null);
+    setToken(null);
+  };
+
+  const refreshAuth = () => {
+    setCurrentUser(getStoredUser());
+    setToken(getStoredToken());
   };
 
   return (
     <AuthContext.Provider
       value={{
-        users,
         currentUser,
-        register,
-        login,
+        token,
         logout,
-        isAuthenticated: !!currentUser,
+        refreshAuth,
+        isAuthenticated: !!token && !!currentUser,
       }}
     >
       {children}
