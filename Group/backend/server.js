@@ -9,7 +9,7 @@ import authRoutes from "./routes/authRoutes.js";
 // middlewares
 import { globalMiddlewares } from "./MiddleWares/index.js";
 
-dotenv.config({ path: "./backend/.env" });
+dotenv.config({ path: "./.env" });
 
 const app = express();
 const PORT = process.env.PORT || 5050;
