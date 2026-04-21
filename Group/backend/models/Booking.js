@@ -10,6 +10,9 @@ const bookingSchema = new mongoose.Schema({
   price: Number,
   nights: Number,
   total: Number,
+  
+  checkIn: Date,
+  checkOut: Date,
 
   userId: String,
 
