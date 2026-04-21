@@ -5,6 +5,8 @@ import connectDB from "./db.js";
 
 // routes
 import bookingRoutes from "./routes/bookingRouts.js";
+import offerRoutes from "./routes/offerRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 // middlewares
 import { globalMiddlewares } from "./MiddleWares/index.js";
@@ -18,7 +20,9 @@ const app = express();
 globalMiddlewares(app);
 
 // routes
+app.use("/auth", authRoutes);
 app.use("/bookings", bookingRoutes);
+app.use("/offers", offerRoutes);
 
 // test route
 app.get("/", (req, res) => {
