@@ -1,6 +1,11 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Layout from "./Components/Layout/Layout";
+<<<<<<< Updated upstream
 import ProtectedRoute from "./Components/ProtectedRoute";
+=======
+import ProtectedRoute from "./RoutesFront/ProtectedRoute";
+import AdminRoute from "./RoutesFront/AdminRoute";
+>>>>>>> Stashed changes
 
 import ReviewRating from "./Pages/ReviewRating";
 import ContactHelp from "./Pages/ContactHelp";
