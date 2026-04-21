@@ -18,4 +18,5 @@ router.post("/", protect, createBooking); // CREATE
 router.patch("/:id", protect, updateBooking); // UPDATE
 router.delete("/:id", protect, deleteBooking); // DELETE
 
+
 export default router;

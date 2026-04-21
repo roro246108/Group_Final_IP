@@ -18,8 +18,11 @@ const API_BASE = resolveApiBase();
 
 function buildHeaders(extraHeaders = {}) {
   const actor = getCurrentAdminIdentity();
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
   return {
     "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     "x-actor-id": actor.userId,
     "x-actor-role": actor.role,
     "x-actor-name": actor.name,
@@ -70,6 +73,19 @@ export async function apiPatch(path, body = {}, headers = {}) {
       method: "PATCH",
       headers: buildHeaders(headers),
       body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("Cannot connect to Punishment API. Ensure backend is running and API URL is correct.");
+  }
+  return parseResponse(response);
+}
+
+export async function apiDelete(path, headers = {}) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method: "DELETE",
+      headers: buildHeaders(headers),
     });
   } catch {
     throw new Error("Cannot connect to Punishment API. Ensure backend is running and API URL is correct.");
