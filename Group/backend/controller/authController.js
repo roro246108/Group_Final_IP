@@ -11,6 +11,16 @@ const generateToken = (user) => {
   );
 };
 
+const buildUserResponse = (user) => ({
+  id: user._id,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  fullName: `${user.firstName} ${user.lastName}`.trim(),
+  email: user.email,
+  phone: user.phone,
+  role: user.role,
+});
+
 export const register = async (req, res) => {
   const errors = validationResult(req);
 
@@ -34,19 +44,15 @@ export const register = async (req, res) => {
       email,
       phone,
       password: hashedPassword,
-      role: "user",
+      role: email.toLowerCase() === "admin@hotel.com" ? "admin" : "user",
     });
+
+    const token = generateToken(user);
 
     res.status(201).json({
       message: "User registered successfully",
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-      },
+      token,
+      user: buildUserResponse(user),
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -75,7 +81,15 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const storedPasswordHash = user.password || user.passwordHash;
+    if (!storedPasswordHash) {
+      return res.status(500).json({
+        message: "Server error",
+        error: "Stored user password hash is missing",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, storedPasswordHash);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -88,14 +102,7 @@ export const login = async (req, res) => {
     res.status(200).json({
       message: "Login successful",
       token,
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-      },
+      user: buildUserResponse(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -112,11 +119,19 @@ export const getMe = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json(user);
+    res.json({
+      user: buildUserResponse(user),
+    });
   } catch (error) {
     res.status(500).json({
       message: "Server error",
       error: error.message,
     });
   }
+};
+
+export const logout = async (req, res) => {
+  res.status(200).json({
+    message: "Logout successful",
+  });
 };

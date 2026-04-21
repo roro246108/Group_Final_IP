@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import bgImage from "../assets/Images/register-bg.jpg";
 import { useAuth } from "../Context/AuthContext";
+import { authApi } from "../services/authApi";
 
 const formContainer = {
   hidden: {},
@@ -67,37 +68,12 @@ export default function LoginPage() {
       setIsSubmittingAnim(true);
 
       try {
-        const response = await fetch("http://localhost:5050/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: values.email,
-            password: values.password,
-          }),
+        const data = await authApi.login({
+          email: values.email,
+          password: values.password,
         });
 
-        const data = await response.json();
-
         setIsSubmittingAnim(false);
-
-        if (!response.ok) {
-          if (data.errors && Array.isArray(data.errors)) {
-            data.errors.forEach((err) => {
-              if (err.path === "email") {
-                setFieldError("email", err.msg);
-              } else if (err.path === "password") {
-                setFieldError("password", err.msg);
-              }
-            });
-          }
-
-          setServerError(data.message || "Login failed");
-          setShakeForm(true);
-          setTimeout(() => setShakeForm(false), 500);
-          return;
-        }
 
         if (values.rememberMe) {
           localStorage.setItem("token", data.token);
@@ -125,7 +101,16 @@ export default function LoginPage() {
         }, 1200);
       } catch (error) {
         setIsSubmittingAnim(false);
-        setServerError("Cannot connect to server");
+        if (error.errors && Array.isArray(error.errors)) {
+          error.errors.forEach((err) => {
+            if (err.path === "email") {
+              setFieldError("email", err.msg);
+            } else if (err.path === "password") {
+              setFieldError("password", err.msg);
+            }
+          });
+        }
+        setServerError(error.message || "Cannot connect to server");
         setShakeForm(true);
         setTimeout(() => setShakeForm(false), 500);
       }
