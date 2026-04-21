@@ -15,7 +15,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import bgImage from "../assets/Images/register-bg.jpg";
-import { useAuth } from "../Context/AuthContext";
+
 
 const formContainer = {
   hidden: {},
@@ -37,7 +37,7 @@ const formItem = {
 };
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -85,37 +85,67 @@ export default function RegisterPage() {
         .oneOf([Yup.ref("password"), null], "Passwords must match")
         .required("Confirm password is required"),
     }),
-    onSubmit: async (values, { resetForm }) => {
+
+    onSubmit: async (values, { resetForm, setFieldError }) => {
       setServerError("");
       setIsSubmittingAnim(true);
 
-      const result = await register({
-        fullName: values.fullName,
-        email: values.email,
-        phone: values.phone,
-        password: values.password,
-      });
+      try {
+        const [firstName, ...rest] = values.fullName.trim().split(" ");
+        const lastName = rest.join(" ") || "User";
 
-      setIsSubmittingAnim(false);
+        const response = await fetch("http://localhost:5050/auth/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email: values.email,
+            phone: values.phone,
+            password: values.password,
+          }),
+        });
 
-      if (!result.success) {
-        setServerError(result.message);
+        const data = await response.json();
+
+        setIsSubmittingAnim(false);
+
+        if (!response.ok) {
+          if (data.errors && Array.isArray(data.errors)) {
+            data.errors.forEach((err) => {
+              if (err.path === "firstName" || err.path === "lastName") {
+                setFieldError("fullName", err.msg);
+              } else if (err.path === "email") {
+                setFieldError("email", err.msg);
+              } else if (err.path === "phone") {
+                setFieldError("phone", err.msg);
+              } else if (err.path === "password") {
+                setFieldError("password", err.msg);
+              }
+            });
+          }
+
+          setServerError(data.message || "Registration failed");
+          setShakeForm(true);
+          setTimeout(() => setShakeForm(false), 500);
+          return;
+        }
+
+        setSuccessMessage(true);
+        resetForm();
+
+        setTimeout(() => {
+          setSuccessMessage(false);
+          navigate("/login");
+        }, 1200);
+      } catch (error) {
+        setIsSubmittingAnim(false);
+        setServerError("Cannot connect to server");
         setShakeForm(true);
         setTimeout(() => setShakeForm(false), 500);
-        return;
       }
-
-      setSuccessMessage(true);
-      resetForm();
-
-      setTimeout(() => {
-        setSuccessMessage(false);
-        if (result.user.role === "admin") {
-          navigate("/admin/dashboard");
-        } else {
-          navigate("/");
-        }
-      }, 1200);
     },
   });
 
@@ -445,7 +475,9 @@ export default function RegisterPage() {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        onClick={() =>
+                          setShowConfirmPassword((prev) => !prev)
+                        }
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-[#567C8D] transition hover:scale-110"
                       >
                         {showConfirmPassword ? (
@@ -455,9 +487,11 @@ export default function RegisterPage() {
                         )}
                       </button>
                     </motion.div>
+
                     <AnimatePresence>
                       {formik.values.confirmPassword &&
-                        formik.values.password === formik.values.confirmPassword && (
+                        formik.values.password ===
+                          formik.values.confirmPassword && (
                           <motion.div
                             initial={{ opacity: 0, y: -4 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -469,7 +503,10 @@ export default function RegisterPage() {
                           </motion.div>
                         )}
                     </AnimatePresence>
-                    <AnimatePresence>{renderError("confirmPassword")}</AnimatePresence>
+
+                    <AnimatePresence>
+                      {renderError("confirmPassword")}
+                    </AnimatePresence>
                   </motion.div>
 
                   <AnimatePresence>

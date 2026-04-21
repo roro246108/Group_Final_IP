@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Layout from "./Components/Layout/Layout";
-import ProtectedRoute from "./Components/ProtectedRoute";
+import ProtectedRoute from "./RoutesFront/ProtectedRoute";
+import AdminRoute from "./RoutesFront/AdminRoute";
 
 import ReviewRating from "./Pages/ReviewRating";
 import ContactHelp from "./Pages/ContactHelp";
@@ -35,133 +36,132 @@ function App() {
     <AuthProvider>
       <FavoritesProvider>
         <OffersProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/hotels" element={<HotelListingPage />} />
-            <Route path="/hotelDetails" element={<HotelDetails />} />
-            <Route path="/branches/:slug" element={<UserBranchDetails />} />
-            <Route path="/hotelDetails/booking" element={<RoomBooking />} />
-            <Route path="/booking" element={<RoomBooking />} />
-            <Route path="/offers" element={<OffersPage />} />
-            <Route path="/payment" element={<Payment />} />
+          <BrowserRouter>
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/hotels" element={<HotelListingPage />} />
+              <Route path="/hotelDetails" element={<HotelDetails />} />
+              <Route path="/branches/:slug" element={<UserBranchDetails />} />
+              <Route path="/hotelDetails/booking" element={<RoomBooking />} />
+              <Route path="/booking" element={<RoomBooking />} />
+              <Route path="/offers" element={<OffersPage />} />
+              <Route path="/payment" element={<Payment />} />
 
-            {/* User protected */}
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
+              {/* User protected */}
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Admin protected */}
-            <Route
-              path="/admin/dashboard"
-              element={
-                <ProtectedRoute role="admin">
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
+              {/* Admin protected */}
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/bookings"
-              element={
-                <ProtectedRoute role="admin">
-                  <AdminBookingManagement />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/bookings"
+                element={
+                  <AdminRoute>
+                    <AdminBookingManagement />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/rooms"
-              element={
-                <ProtectedRoute role="admin">
-                  <AdminRoomManagement />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/rooms"
+                element={
+                  <AdminRoute>
+                    <AdminRoomManagement />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/usermanagement"
-              element={
-                <ProtectedRoute role="admin">
-                  <UserManagement />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/usermanagement"
+                element={
+                  <AdminRoute>
+                    <UserManagement />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/hotels"
-              element={
-                <ProtectedRoute role="admin">
-                  <HotelManagement />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/hotels"
+                element={
+                  <AdminRoute>
+                    <HotelManagement />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/hotels/add"
-              element={
-                <ProtectedRoute role="admin">
-                  <AddBranch />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/hotels/add"
+                element={
+                  <AdminRoute>
+                    <AddBranch />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/hotels/:id"
-              element={
-                <ProtectedRoute role="admin">
-                  <BranchDetails />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/hotels/:id"
+                element={
+                  <AdminRoute>
+                    <BranchDetails />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/hotels/edit/:id"
-              element={
-                <ProtectedRoute role="admin">
-                  <EditBranch />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/hotels/edit/:id"
+                element={
+                  <AdminRoute>
+                    <EditBranch />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/offers"
-              element={
-                <ProtectedRoute role="admin">
-                  <AdminOffersPage />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/offers"
+                element={
+                  <AdminRoute>
+                    <AdminOffersPage />
+                  </AdminRoute>
+                }
+              />
 
-            <Route
-              path="/admin/settings"
-              element={
-                <ProtectedRoute role="admin">
-                  <AdminSettings />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/settings"
+                element={
+                  <AdminRoute>
+                    <AdminSettings />
+                  </AdminRoute>
+                }
+              />
 
-          <Route path="/admin/settings" element={<AdminSettings />} />
-
-          <Route element={<Layout />}>
-            <Route path="/favorites" element={<FavoritesPage />} />
-            <Route path="/reviews" element={<ReviewRating />} />
-            <Route path="/help" element={<ContactHelp />} />
-            <Route path="/about" element={<About />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+              {/* Layout routes */}
+              <Route element={<Layout />}>
+                <Route path="/favorites" element={<FavoritesPage />} />
+                <Route path="/reviews" element={<ReviewRating />} />
+                <Route path="/help" element={<ContactHelp />} />
+                <Route path="/about" element={<About />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
         </OffersProvider>
-    </FavoritesProvider>
+      </FavoritesProvider>
     </AuthProvider>
   );
 }

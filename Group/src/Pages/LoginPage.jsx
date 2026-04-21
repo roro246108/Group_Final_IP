@@ -35,8 +35,8 @@ const formItem = {
 };
 
 export default function LoginPage() {
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { refreshAuth } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmittingAnim, setIsSubmittingAnim] = useState(false);
@@ -61,31 +61,74 @@ export default function LoginPage() {
         .required("Email is required"),
       password: Yup.string().required("Password is required"),
     }),
-    onSubmit: async (values) => {
+
+    onSubmit: async (values, { setFieldError }) => {
       setServerError("");
       setIsSubmittingAnim(true);
 
-      const result = await login(values.email, values.password);
+      try {
+        const response = await fetch("http://localhost:5050/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: values.email,
+            password: values.password,
+          }),
+        });
 
-      setIsSubmittingAnim(false);
+        const data = await response.json();
 
-      if (!result.success) {
-        setServerError(result.message);
+        setIsSubmittingAnim(false);
+
+        if (!response.ok) {
+          if (data.errors && Array.isArray(data.errors)) {
+            data.errors.forEach((err) => {
+              if (err.path === "email") {
+                setFieldError("email", err.msg);
+              } else if (err.path === "password") {
+                setFieldError("password", err.msg);
+              }
+            });
+          }
+
+          setServerError(data.message || "Login failed");
+          setShakeForm(true);
+          setTimeout(() => setShakeForm(false), 500);
+          return;
+        }
+
+        if (values.rememberMe) {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("user", JSON.stringify(data.user));
+          sessionStorage.removeItem("token");
+          sessionStorage.removeItem("user");
+        } else {
+          sessionStorage.setItem("token", data.token);
+          sessionStorage.setItem("user", JSON.stringify(data.user));
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
+
+        refreshAuth();
+        setSuccessMessage(true);
+
+        setTimeout(() => {
+          setSuccessMessage(false);
+
+          if (data.user.role === "admin") {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 1200);
+      } catch (error) {
+        setIsSubmittingAnim(false);
+        setServerError("Cannot connect to server");
         setShakeForm(true);
         setTimeout(() => setShakeForm(false), 500);
-        return;
       }
-
-      setSuccessMessage(true);
-
-      setTimeout(() => {
-        setSuccessMessage(false);
-        if (result.user.role === "admin") {
-          navigate("/admin/dashboard");
-        } else {
-          navigate("/");
-        }
-      }, 1200);
     },
   });
 

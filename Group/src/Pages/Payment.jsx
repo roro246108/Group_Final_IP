@@ -1,10 +1,9 @@
 import { useState } from "react";
 import visaimg from "../assets/Images/visa4.png";
-import img from "../assets//Images/PaymentFormPage.jpg";
+import img from "../assets/Images/PaymentFormPage.jpg";
 
-export default function PaymentPage() {
+export default function PaymentPage({ room, nights, total }) {
 
-  
   const [email, setEmail] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -13,6 +12,7 @@ export default function PaymentPage() {
   const [error, setError] = useState("");
   const [phone, setPhone] = useState("");
 
+  
   const handleCardNumber = (e) => {
     const value = e.target.value;
     setCardNumber(value);
@@ -41,13 +41,50 @@ export default function PaymentPage() {
     else setError("");
   };
 
-  const handlePayment = () => {
+  // backend section
+  const handlePayment = async () => {
     if (!cardNumber || !expiry || !cvv || !name || !email || !phone) {
       setError("Please fill in all fields first.");
       return;
     }
-    setError("");
-    alert("Payment successful");
+
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("You must login first.");
+        return;
+      }
+
+      const response = await fetch("http://localhost:5050/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+
+          roomName: room?.roomName || "Room",
+          price: room?.price || 0,
+          nights: nights || 1,
+          total: total || 0
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message);
+      }
+
+      setError("");
+      alert("Booking successful ");
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   return (
@@ -58,17 +95,13 @@ export default function PaymentPage() {
 
         {/* IMAGE */}
         <div className="md:w-1/2">
-          <img
-            src={img}
-            alt="Room"
-            className="w-full h-full object-cover"
-          />
+          <img src={img} alt="Room" className="w-full h-full object-cover" />
         </div>
 
         {/* FORM */}
         <div className="md:w-1/2 bg-white p-12 flex flex-col justify-center text-[#1e3a8a]">
 
-          <h2 className="text-3xl font-bold mb-8 text-center ">
+          <h2 className="text-3xl font-bold mb-8 text-center">
             Payment Details
           </h2>
 
@@ -88,7 +121,7 @@ export default function PaymentPage() {
             type="email"
             placeholder="Email"
             value={email}
-            onChange={(e)=>setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full border p-3 rounded-lg mb-4"
           />
 
@@ -96,7 +129,7 @@ export default function PaymentPage() {
             type="text"
             placeholder="Phone Number"
             value={phone}
-            onChange={(e)=>setPhone(e.target.value)}
+            onChange={(e) => setPhone(e.target.value)}
             className="w-full border p-3 rounded-lg mb-6"
           />
 
@@ -104,19 +137,14 @@ export default function PaymentPage() {
             Card Details
           </h3>
 
-          {/*  Bigger logo */}
-          <img 
-            src={visaimg} 
-            alt="Card Logos" 
-            className="w-[280px] h-auto mb-4"
-          />
+          <img src={visaimg} alt="Card Logos" className="w-[280px] mb-4" />
 
           <input
             type="text"
             placeholder="Card Number"
             value={cardNumber}
             onChange={handleCardNumber}
-            className="w-full border p-3 rounded-lg mb-4 "
+            className="w-full border p-3 rounded-lg mb-4"
           />
 
           <div className="flex gap-4 mb-4">

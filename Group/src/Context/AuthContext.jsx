@@ -3,111 +3,67 @@ import { authApi } from "../services/authApi";
 
 const AuthContext = createContext();
 
-function readStoredJson(key, fallbackValue) {
+function getStoredUser() {
   try {
-    const storedValue = localStorage.getItem(key);
-    if (!storedValue || storedValue === "undefined" || storedValue === "null") {
-      return fallbackValue;
+    const localUser = localStorage.getItem("user");
+    const sessionUser = sessionStorage.getItem("user");
+
+    const storedUser = localUser || sessionUser;
+
+    if (!storedUser || storedUser === "undefined" || storedUser === "null") {
+      return null;
     }
-    return JSON.parse(storedValue);
+
+    return JSON.parse(storedUser);
   } catch (error) {
-    console.error(`Error parsing localStorage key "${key}":`, error);
-    localStorage.removeItem(key);
-    return fallbackValue;
+    console.error("Error parsing stored user:", error);
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("user");
+    return null;
   }
 }
 
+function getStoredToken() {
+  return localStorage.getItem("token") || sessionStorage.getItem("token") || null;
+}
+
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(() => readStoredJson("currentUser", null));
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(getStoredUser);
+  const [token, setToken] = useState(getStoredToken);
 
   useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem("currentUser", JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem("currentUser");
-      }
-    } catch (error) {
-      console.error("Error saving currentUser:", error);
-    }
-  }, [currentUser]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const hydrate = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        if (isMounted) setIsAuthLoading(false);
-        return;
-      }
-
-      try {
-        const result = await authApi.me();
-        if (isMounted) {
-          setCurrentUser(result.user);
-        }
-      } catch {
-        localStorage.removeItem("token");
-        localStorage.removeItem("currentUser");
-        if (isMounted) {
-          setCurrentUser(null);
-        }
-      } finally {
-        if (isMounted) setIsAuthLoading(false);
-      }
+    const syncAuthState = () => {
+      setCurrentUser(getStoredUser());
+      setToken(getStoredToken());
     };
 
-    hydrate();
-    return () => {
-      isMounted = false;
-    };
+    window.addEventListener("storage", syncAuthState);
+    return () => window.removeEventListener("storage", syncAuthState);
   }, []);
 
-  const register = async (newUser) => {
-    try {
-      const result = await authApi.register(newUser);
-      localStorage.setItem("token", result.token);
-      setCurrentUser(result.user);
-      return { success: true, user: result.user };
-    } catch (error) {
-      return { success: false, message: error.message };
-    }
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
+
+    setCurrentUser(null);
+    setToken(null);
   };
 
-  const login = async (email, password) => {
-    try {
-      const result = await authApi.login({ email, password });
-      localStorage.setItem("token", result.token);
-      setCurrentUser(result.user);
-      return { success: true, user: result.user };
-    } catch (error) {
-      return { success: false, message: error.message };
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await authApi.logout();
-    } catch {
-      // logout should still clear local auth state
-    } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("currentUser");
-      setCurrentUser(null);
-    }
+  const refreshAuth = () => {
+    setCurrentUser(getStoredUser());
+    setToken(getStoredToken());
   };
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
-        register,
-        login,
+        token,
         logout,
-        isAuthLoading,
-        isAuthenticated: !!currentUser,
+        refreshAuth,
+        isAuthenticated: !!token && !!currentUser,
       }}
     >
       {children}
