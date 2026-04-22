@@ -1,4 +1,15 @@
+import { validationResult } from "express-validator";
 import Offer from "../models/Offer.js";
+
+// Returns a 400 with the validator errors, or null if the request is valid
+const rejectIfInvalid = (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({ errors: errors.array() });
+    return true;
+  }
+  return false;
+};
 
 // GET all offers
 export const getOffers = async (req, res) => {
@@ -12,6 +23,7 @@ export const getOffers = async (req, res) => {
 
 // GET single offer by id
 export const getOfferById = async (req, res) => {
+  if (rejectIfInvalid(req, res)) return;
   try {
     const offer = await Offer.findById(req.params.id);
     if (!offer) return res.status(404).json({ message: "Offer not found" });
@@ -23,6 +35,7 @@ export const getOfferById = async (req, res) => {
 
 // CREATE offer (admin only)
 export const createOffer = async (req, res) => {
+  if (rejectIfInvalid(req, res)) return;
   try {
     const { title, type, badge, discount, originalPrice, pricePerNight, expiryDate, hotelId, description } = req.body;
 
@@ -46,6 +59,7 @@ export const createOffer = async (req, res) => {
 
 // UPDATE offer (admin only)
 export const updateOffer = async (req, res) => {
+  if (rejectIfInvalid(req, res)) return;
   try {
     const offer = await Offer.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
