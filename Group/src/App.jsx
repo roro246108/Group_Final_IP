@@ -47,10 +47,31 @@ function App() {
               <Route path="/hotels" element={<HotelListingPage />} />
               <Route path="/hotelDetails" element={<HotelDetails />} />
               <Route path="/branches/:slug" element={<UserBranchDetails />} />
-              <Route path="/hotelDetails/booking" element={<RoomBooking />} />
-              <Route path="/booking" element={<RoomBooking />} />
+              <Route
+                path="/hotelDetails/booking"
+                element={
+                  <ProtectedRoute>
+                    <RoomBooking />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/booking"
+                element={
+                  <ProtectedRoute>
+                    <RoomBooking />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/offers" element={<OffersPage />} />
-              <Route path="/payment" element={<Payment />} />
+              <Route
+                path="/payment"
+                element={
+                  <ProtectedRoute>
+                    <Payment />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* User protected */}
               <Route

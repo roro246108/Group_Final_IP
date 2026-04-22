@@ -1,8 +1,9 @@
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Eye,
   EyeOff,
@@ -14,7 +15,6 @@ import {
 } from "lucide-react";
 import bgImage from "../assets/Images/register-bg.jpg";
 import { useAuth } from "../Context/AuthContext";
-import { authApi } from "../services/authApi";
 
 const formContainer = {
   hidden: {},
@@ -37,6 +37,7 @@ const formItem = {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { refreshAuth } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -124,7 +125,14 @@ export default function LoginPage() {
         setTimeout(() => {
           setSuccessMessage(false);
 
-          if (data.user.role === "admin") {
+          const returnTo = location.state?.from;
+
+          if (returnTo?.pathname) {
+            navigate(returnTo.pathname, {
+              replace: true,
+              state: returnTo.state,
+            });
+          } else if (data.user.role === "admin") {
             navigate("/admin/dashboard");
           } else {
             navigate("/");

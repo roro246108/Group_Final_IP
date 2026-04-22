@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Building2,
   CheckCircle,
@@ -18,6 +18,49 @@ import { logAuditEvent } from "../services/auditLogger";
 import useAdminThemeMode from "../hooks/useAdminThemeMode";
 import { useLanguage } from "../Context/LanguageContext";
 import hotelsData from "../data/hotels";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../services/apiClient";
+import { locations } from "../data/hotels";
+import { getSafeRoomImage } from "../utils/roomMedia";
+
+const branchInfoByName = Object.fromEntries(
+  locations.map((location) => [location.name, location])
+);
+
+const roomTypeDefaults = {
+  Standard: { guests: 2, beds: 1, baths: 1, size: 250, rating: 4.2 },
+  Deluxe: { guests: 2, beds: 1, baths: 1, size: 320, rating: 4.5 },
+  Suite: { guests: 4, beds: 2, baths: 2, size: 520, rating: 4.7 },
+  Penthouse: { guests: 5, beds: 2, baths: 3, size: 900, rating: 4.9 },
+};
+
+const normalizeRoomFromApi = (room) => ({
+  id: room._id || room.id,
+  name: room.roomName,
+  type: room.type,
+  price: Number(room.price) || 0,
+  status: room.status || (room.available ? "Available" : "Occupied"),
+  description:
+    room.description ||
+    `${room.type} room in ${room.branch}, located at ${room.location}.`,
+  image: room.image,
+  branch: room.branch,
+  location: room.location,
+  city: room.city,
+  guests: room.guests,
+  beds: room.beds,
+  baths: room.baths,
+  amenities: room.amenities || [],
+  size: room.size,
+  rating: room.rating,
+  available: typeof room.available === "boolean" ? room.available : room.status === "Available",
+  featured: !!room.featured,
+  dateStatuses: room.dateStatuses || {},
+});
+
+const getBranchMeta = (branch) => branchInfoByName[branch] || null;
+
+const getDefaultRoomNumbers = (type) =>
+  roomTypeDefaults[type] || roomTypeDefaults.Standard;
 
 function AdminRoomManagement() {
   const { darkMode } = useAdminThemeMode();
@@ -30,6 +73,8 @@ function AdminRoomManagement() {
   const [calendarMonth, setCalendarMonth] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError, setRoomsError] = useState("");
 
   const [editingRoom, setEditingRoom] = useState(null);
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
@@ -41,6 +86,14 @@ function AdminRoomManagement() {
     price: "",
     status: "",
     description: "",
+    city: "",
+    location: "",
+    guests: "",
+    beds: "",
+    baths: "",
+    size: "",
+    image: "",
+    featured: false,
   });
 
   const [newRoomForm, setNewRoomForm] = useState({
@@ -50,36 +103,49 @@ function AdminRoomManagement() {
     price: "",
     status: "Available",
     description: "",
+    city: "",
     location: "",
     image: "",
+    guests: "",
+    beds: "",
+    baths: "",
+    size: "",
+    featured: false,
   });
 
-  const [rooms, setRooms] = useState(
-    hotelsData.map((room) => ({
-      id: room.id,
-      name: room.roomName,
-      type: room.type,
-      price: room.price,
-      status: room.available ? "Available" : "Occupied",
-      description: `${room.type} room in ${room.branch}, located at ${room.location}.`,
-      image: room.image,
-      branch: room.branch,
-      location: room.location,
-      city: room.city,
-      guests: room.guests,
-      beds: room.beds,
-      baths: room.baths,
-      amenities: room.amenities,
-      size: room.size,
-      rating: room.rating,
-      dateStatuses: {},
-    }))
-  );
+  const [rooms, setRooms] = useState([]);
 
   const branchOptions = [...new Set(hotelsData.map((room) => room.branch))];
   const branchLocations = Object.fromEntries(
     hotelsData.map((room) => [room.branch, room.location])
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchRooms = async () => {
+      try {
+        setRoomsLoading(true);
+        setRoomsError("");
+
+        const data = await apiGet("/rooms");
+        if (cancelled) return;
+
+        setRooms(data.map(normalizeRoomFromApi));
+      } catch (error) {
+        if (cancelled) return;
+        setRoomsError(error.message || "Failed to load rooms.");
+      } finally {
+        if (!cancelled) setRoomsLoading(false);
+      }
+    };
+
+    fetchRooms();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const formatDateKey = (date) => date.toISOString().split("T")[0];
 
@@ -100,40 +166,46 @@ function AdminRoomManagement() {
 
   const handleToggleStatus = (roomId) => {
     const roomBefore = rooms.find((room) => room.id === roomId);
+    if (!roomBefore) return;
+
+    let nextStatus = "Available";
+    if (roomBefore.status === "Available") nextStatus = "Occupied";
+    else if (roomBefore.status === "Occupied") nextStatus = "Maintenance";
+    else if (roomBefore.status === "Maintenance") nextStatus = "Available";
 
     setRooms((prevRooms) =>
-      prevRooms.map((room) => {
-        if (room.id !== roomId) return room;
-
-        let nextStatus = "Available";
-        if (room.status === "Available") nextStatus = "Occupied";
-        else if (room.status === "Occupied") nextStatus = "Maintenance";
-        else if (room.status === "Maintenance") nextStatus = "Available";
-
-        return { ...room, status: nextStatus };
-      })
+      prevRooms.map((room) =>
+        room.id === roomId
+          ? { ...room, status: nextStatus, available: nextStatus === "Available" }
+          : room
+      )
     );
 
-    if (roomBefore) {
-      const statusSequence = {
-        Available: "Occupied",
-        Occupied: "Maintenance",
-        Maintenance: "Available",
-      };
-      const nextStatus = statusSequence[roomBefore.status] ?? "Available";
+    apiPatch(`/rooms/${roomId}`, {
+      ...roomBefore,
+      roomName: roomBefore.name,
+      status: nextStatus,
+      available: nextStatus === "Available",
+    }).catch((error) => {
+      setRooms((prevRooms) =>
+        prevRooms.map((room) =>
+          room.id === roomId ? roomBefore : room
+        )
+      );
+      alert(error.message || "Failed to update room status.");
+    });
 
-      logAuditEvent({
-        actionType: "room.status.updated",
-        module: "room_management",
-        entityType: "room",
-        entityId: String(roomId),
-        targetLabel: roomBefore.name,
-        status: "success",
-        reason: "Room status cycle changed",
-        before: { status: roomBefore.status },
-        after: { status: nextStatus },
-      });
-    }
+    logAuditEvent({
+      actionType: "room.status.updated",
+      module: "room_management",
+      entityType: "room",
+      entityId: String(roomId),
+      targetLabel: roomBefore.name,
+      status: "success",
+      reason: "Room status cycle changed",
+      before: { status: roomBefore.status },
+      after: { status: nextStatus },
+    });
   };
 
   const handleDeleteRoom = (roomToDelete) => {
@@ -142,6 +214,8 @@ function AdminRoomManagement() {
     );
 
     if (!confirmed) return;
+
+    const snapshot = rooms;
 
     setRooms((prevRooms) =>
       prevRooms.filter((room) => room.id !== roomToDelete.id)
@@ -154,6 +228,11 @@ function AdminRoomManagement() {
     if (editingRoom?.id === roomToDelete.id) {
       handleCloseEditRoom();
     }
+
+    apiDelete(`/rooms/${roomToDelete.id}`).catch((error) => {
+      setRooms(snapshot);
+      alert(error.message || "Failed to delete room.");
+    });
 
     logAuditEvent({
       actionType: "room.deleted",
@@ -243,6 +322,7 @@ function AdminRoomManagement() {
 
   const handleOpenEditRoom = (room) => {
     setEditingRoom(room);
+    const branchMeta = getBranchMeta(room.branch);
     setEditForm({
       name: room.name,
       branch: room.branch,
@@ -250,6 +330,14 @@ function AdminRoomManagement() {
       price: room.price,
       status: room.status,
       description: room.description,
+      city: room.city || branchMeta?.city || "",
+      location: room.location || branchMeta?.address || "",
+      guests: room.guests ?? "",
+      beds: room.beds ?? "",
+      baths: room.baths ?? "",
+      size: room.size ?? "",
+      image: room.image || "",
+      featured: !!room.featured,
     });
   };
 
@@ -262,33 +350,79 @@ function AdminRoomManagement() {
       price: "",
       status: "",
       description: "",
+      city: "",
+      location: "",
+      guests: "",
+      beds: "",
+      baths: "",
+      size: "",
+      image: "",
+      featured: false,
     });
   };
 
   const handleEditInputChange = (field, value) => {
-    setEditForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setEditForm((prev) => {
+      if (field === "branch") {
+        const branchMeta = getBranchMeta(value);
+        return {
+          ...prev,
+          branch: value,
+          city: branchMeta?.city || "",
+          location: branchMeta?.address || "",
+        };
+      }
+
+      if (field === "type") {
+        const defaults = getDefaultRoomNumbers(value);
+        return {
+          ...prev,
+          type: value,
+          guests: String(defaults.guests),
+          beds: String(defaults.beds),
+          baths: String(defaults.baths),
+          size: String(defaults.size),
+        };
+      }
+
+      return {
+        ...prev,
+        [field]: value,
+      };
+    });
   };
 
   const handleSaveRoom = () => {
     if (!editingRoom) return;
 
     const roomBefore = rooms.find((room) => room.id === editingRoom.id);
+    const branchMeta = getBranchMeta(editingRoom.branch || editForm.branch);
+    const normalizedPayload = {
+      roomName: editForm.name.trim(),
+      branch: editForm.branch.trim(),
+      city: editForm.city.trim() || branchMeta?.city || "",
+      location: editForm.location.trim() || branchMeta?.address || "",
+      type: editForm.type,
+      price: Number(editForm.price),
+      status: editForm.status,
+      description: editForm.description.trim(),
+      image: editForm.image.trim() || roomBefore?.image,
+      guests: Number(editForm.guests) || roomBefore?.guests || 1,
+      beds: Number(editForm.beds) || roomBefore?.beds || 1,
+      baths: Number(editForm.baths) || roomBefore?.baths || 1,
+      size: Number(editForm.size) || roomBefore?.size || 1,
+      featured: !!editForm.featured,
+      amenities: roomBefore?.amenities || [],
+      rating: roomBefore?.rating || 0,
+    };
 
     setRooms((prevRooms) =>
       prevRooms.map((room) =>
         room.id === editingRoom.id
           ? {
               ...room,
-              name: editForm.name,
-              branch: editForm.branch,
-              location: branchLocations[editForm.branch] || room.location,
-              type: editForm.type,
-              price: Number(editForm.price),
-              status: editForm.status,
-              description: editForm.description,
+              ...normalizedPayload,
+              available: editForm.status === "Available",
             }
           : room
       )
@@ -298,14 +432,18 @@ function AdminRoomManagement() {
       if (!prevRoom || prevRoom.id !== editingRoom.id) return prevRoom;
       return {
         ...prevRoom,
-        name: editForm.name,
-        branch: editForm.branch,
-        location: branchLocations[editForm.branch] || prevRoom.location,
-        type: editForm.type,
-        price: Number(editForm.price),
-        status: editForm.status,
-        description: editForm.description,
+        ...normalizedPayload,
+        available: editForm.status === "Available",
       };
+    });
+
+    apiPatch(`/rooms/${editingRoom.id}`, normalizedPayload).catch((error) => {
+      setRooms((prevRooms) =>
+        prevRooms.map((room) =>
+          room.id === editingRoom.id ? roomBefore : room
+        )
+      );
+      alert(error.message || "Failed to save room changes.");
     });
 
     handleCloseEditRoom();
@@ -328,12 +466,12 @@ function AdminRoomManagement() {
           description: roomBefore.description,
         },
         after: {
-          name: editForm.name,
-          branch: editForm.branch,
-          type: editForm.type,
-          price: Number(editForm.price),
-          status: editForm.status,
-          description: editForm.description,
+          name: normalizedPayload.roomName,
+          branch: normalizedPayload.branch,
+          type: normalizedPayload.type,
+          price: normalizedPayload.price,
+          status: normalizedPayload.status,
+          description: normalizedPayload.description,
         },
       });
     }
@@ -342,10 +480,23 @@ function AdminRoomManagement() {
   const handleNewRoomInputChange = (field, value) => {
     setNewRoomForm((prev) => {
       if (field === "branch") {
+        const branchMeta = getBranchMeta(value);
         return {
           ...prev,
           branch: value,
-          location: branchLocations[value] || "",
+          location: branchMeta?.address || branchLocations[value] || "",
+          city: branchMeta?.city || "",
+        };
+      }
+      if (field === "type") {
+        const defaults = getDefaultRoomNumbers(value);
+        return {
+          ...prev,
+          type: value,
+          guests: String(defaults.guests),
+          beds: String(defaults.beds),
+          baths: String(defaults.baths),
+          size: String(defaults.size),
         };
       }
       return {
@@ -367,26 +518,30 @@ function AdminRoomManagement() {
       return;
     }
 
+    const branchMeta = getBranchMeta(newRoomForm.branch);
+    const defaults = getDefaultRoomNumbers(newRoomForm.type);
     const newRoom = {
       id: Date.now(),
-      name: newRoomForm.name,
+      name: newRoomForm.name.trim(),
       branch: newRoomForm.branch,
-      location: newRoomForm.location || "Unknown Location",
+      location: newRoomForm.location || branchMeta?.address || "Unknown Location",
+      city: newRoomForm.city || branchMeta?.city || "",
       type: newRoomForm.type,
       price: Number(newRoomForm.price),
       status: newRoomForm.status,
       description: newRoomForm.description,
       image:
         newRoomForm.image.trim() ||
-        "https://images.unsplash.com/photo-1566665797739-1674de7a421a",
-      city: "",
-      guests: 2,
-      beds: 1,
-      baths: 1,
+        getSafeRoomImage({ type: newRoomForm.type, branch: newRoomForm.branch }),
+      guests: Number(newRoomForm.guests) || defaults.guests,
+      beds: Number(newRoomForm.beds) || defaults.beds,
+      baths: Number(newRoomForm.baths) || defaults.baths,
       amenities: [],
-      size: 0,
-      rating: 4.5,
+      size: Number(newRoomForm.size) || defaults.size,
+      rating: defaults.rating,
+      featured: !!newRoomForm.featured,
       dateStatuses: {},
+      available: newRoomForm.status === "Available",
     };
 
     setRooms((prev) => [newRoom, ...prev]);
@@ -398,9 +553,45 @@ function AdminRoomManagement() {
       price: "",
       status: "Available",
       description: "",
+      city: "",
       location: "",
       image: "",
+      guests: "",
+      beds: "",
+      baths: "",
+      size: "",
+      featured: false,
     });
+
+    apiPost("/rooms", {
+      roomName: newRoom.name,
+      branch: newRoom.branch,
+      city: newRoom.city || branchMeta?.city || "",
+      location: newRoom.location || branchMeta?.address || "Unknown Location",
+      type: newRoom.type,
+      price: newRoom.price,
+      status: newRoom.status,
+      description: newRoom.description,
+      image: newRoom.image,
+      guests: newRoom.guests,
+      beds: newRoom.beds,
+      baths: newRoom.baths,
+      size: newRoom.size,
+      featured: newRoom.featured,
+      amenities: [],
+      rating: newRoom.rating,
+    })
+      .then((createdRoom) => {
+        setRooms((prev) =>
+          prev.map((room) =>
+            room.id === newRoom.id ? normalizeRoomFromApi(createdRoom) : room
+          )
+        );
+      })
+      .catch((error) => {
+        setRooms((prev) => prev.filter((room) => room.id !== newRoom.id));
+        alert(error.message || "Failed to create room.");
+      });
 
     logAuditEvent({
       actionType: "room.created",
@@ -446,6 +637,7 @@ function AdminRoomManagement() {
       const matchesSearch =
         room.name.toLowerCase().includes(query) ||
         room.type.toLowerCase().includes(query) ||
+        String(room.price).includes(query) ||
         room.branch.toLowerCase().includes(query) ||
         room.location.toLowerCase().includes(query) ||
         room.city.toLowerCase().includes(query);
@@ -515,6 +707,29 @@ function AdminRoomManagement() {
         />
 
         <div className="p-7">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-[#0f2247]">
+                Room Management
+              </h1>
+              <p className="text-sm text-slate-500">
+                Manage rooms and keep user pages in sync automatically.
+              </p>
+            </div>
+          </div>
+
+          {roomsLoading && (
+            <div className="mb-6 rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
+              Loading rooms from the database...
+            </div>
+          )}
+
+          {roomsError && (
+            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 shadow-sm">
+              {roomsError}
+            </div>
+          )}
+
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
               <div>
@@ -960,6 +1175,21 @@ function AdminRoomManagement() {
                   />
                 </div>
 
+                <div>
+                  <label className="mb-2 block font-semibold text-slate-600">
+                    Image URL
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.image}
+                    onChange={(e) =>
+                      handleEditInputChange("image", e.target.value)
+                    }
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-700 outline-none focus:ring-2 focus:ring-blue-200"
+                    placeholder="Paste image URL or leave empty for default image"
+                  />
+                </div>
+
                 <div className="flex gap-3 pt-1">
                   <button
                     onClick={handleCloseEditRoom}
@@ -1070,6 +1300,25 @@ function AdminRoomManagement() {
 
                 <div>
                   <label className="mb-2 block font-semibold text-slate-600">
+                    Image URL
+                  </label>
+                  <input
+                    type="text"
+                    value={newRoomForm.image}
+                    onChange={(e) =>
+                      handleNewRoomInputChange("image", e.target.value)
+                    }
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-700 outline-none focus:ring-2 focus:ring-blue-200"
+                    placeholder="Paste image URL or leave empty for default image"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    If you leave this empty, we will use a built-in room photo
+                    based on the room type.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-semibold text-slate-600">
                     Status
                   </label>
                   <div className="grid grid-cols-3 gap-3">
@@ -1132,21 +1381,6 @@ function AdminRoomManagement() {
                     }
                     className="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-slate-700 outline-none focus:ring-2 focus:ring-blue-200"
                     placeholder="Luxury room with ocean view."
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block font-semibold text-slate-600">
-                    Image URL
-                  </label>
-                  <input
-                    type="text"
-                    value={newRoomForm.image}
-                    onChange={(e) =>
-                      handleNewRoomInputChange("image", e.target.value)
-                    }
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-700 outline-none focus:ring-2 focus:ring-blue-200"
-                    placeholder="Paste image URL here"
                   />
                 </div>
 

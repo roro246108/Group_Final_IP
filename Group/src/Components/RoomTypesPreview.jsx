@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import suiteAlex from "../assets/Images/Suite.jpg";
-import suiteCairo from "../assets/Images/Suite3.jpg";
-import penthouseSharm from "../assets/Images/Penthouse4.jpg";
+import suiteAlex from "/Images/Suite.jpg";
+import suiteCairo from "/Images/Suite3.jpg";
+import penthouseSharm from "/Images/Penthouse4.jpg";
 
 const rooms = [
   {
