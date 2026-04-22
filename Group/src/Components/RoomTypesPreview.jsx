@@ -1,4 +1,7 @@
 import { Link } from "react-router-dom";
+import suiteAlex from "/Images/Suite.jpg";
+import suiteCairo from "/Images/Suite3.jpg";
+import penthouseSharm from "/Images/Penthouse4.jpg";
 import hotels from "../data/hotels";
 
 const featuredRooms = hotels.filter((r) => r.featured).slice(0, 3);

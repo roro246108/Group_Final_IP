@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import visaimg from "../assets/Images/visa4.png";
 import img from "../assets/Images/PaymentFormPage.jpg";
+import { createBooking } from "../services/bookingsApi";
 
 export default function PaymentPage({ room: propsRoom, nights: propsNights, total: propsTotal }) {
   useEffect(() => {
@@ -23,6 +24,8 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
   const total = locationState.total || propsTotal;
   const checkIn = locationState.checkIn || "";
   const checkOut = locationState.checkOut || "";
+  const branch = locationState.branch || room?.branch || "";
+  const guests = locationState.guests || room?.guests || 1;
 
   const [email, setEmail] = useState("");
   const [cardNumber, setCardNumber] = useState("");
@@ -112,36 +115,31 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
 
     console.log("Using token:", token.substring(0, 20) + "...");
 
-    const response = await fetch("http://localhost:5050/api/bookings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        name,
-        email,
-        phone,
-        roomName: room?.roomName || "Room",
-        price: room?.price || 0,
-        nights: nights || 1,
-        total: total || 0,
-        checkIn: checkIn || new Date().toISOString(),
-        checkOut: checkOut || new Date().toISOString()
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message);
-    }
+    const booking = await createBooking({
+      name,
+      email,
+      phone,
+      roomName: room?.roomName || "Room",
+      price: room?.price || 0,
+      nights: nights || 1,
+      total: total || 0,
+      branch,
+      guests,
+      checkIn: checkIn || new Date().toISOString(),
+      checkOut: checkOut || new Date().toISOString(),
+    }, token);
 
     setError("");
-    alert("Booking successful! Your reservation has been saved.");
+    alert(`Booking successful! Reference: ${booking._id || "saved"}.`);
 
   } catch (err) {
-    setError(err.message);
+    const message = err?.message || "Payment failed. Please try again.";
+    const isDbTimeout = message.includes("buffering timed out") || message.includes("insertOne()");
+    setError(
+      isDbTimeout
+        ? "Booking service is temporarily unavailable. Please try again in a moment."
+        : message
+    );
     console.error("Payment error:", err);
   }
 };

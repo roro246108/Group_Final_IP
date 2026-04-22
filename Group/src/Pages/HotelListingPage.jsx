@@ -8,6 +8,8 @@ import FilterSidebar from "../Components/FilterSidebar";
 import HotelCard from "../Components/HotelCard";
 import hotelsData from "../data/hotels.js";
 import Footer from "../Components/Footer";
+import { apiGet } from "../services/apiClient";
+import { normalizeRoomRecord } from "../utils/roomMedia";
 import Background1 from "../assets/Images/Background.jpg";
 import Background2 from "../assets/Images/Background2.jpg";
 import Background3 from "../assets/Images/Backgroud3.jpg";
@@ -82,8 +84,30 @@ export default function HotelListingPage() {
   ];
 
   useEffect(() => {
-    setRooms(hotelsData || []);
-    setLoading(false);
+    let cancelled = false;
+
+    const fetchRooms = async () => {
+      try {
+        setLoading(true);
+        const data = await apiGet("/rooms");
+
+        if (cancelled) return;
+
+        setRooms(data.map(normalizeRoomRecord));
+      } catch {
+        if (!cancelled) {
+          setRooms(hotelsData || []);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchRooms();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -180,6 +204,17 @@ export default function HotelListingPage() {
   const featuredRooms = useMemo(() => {
     return rooms.filter((room) => room.featured).slice(0, 5);
   }, [rooms]);
+
+  const branchOptions = useMemo(
+    () =>
+      [...new Set(rooms.map((room) => room.branch).filter(Boolean))].sort(),
+    [rooms]
+  );
+
+  const typeOptions = useMemo(
+    () => [...new Set(rooms.map((room) => room.type).filter(Boolean))].sort(),
+    [rooms]
+  );
 
   const uniqueBranchesCount = useMemo(() => {
     return new Set(rooms.map((room) => room.branch)).size;
@@ -293,6 +328,7 @@ export default function HotelListingPage() {
               }}
               onSearchClick={handleSearchClick}
               resultCount={filteredRooms.length}
+              branchOptions={branchOptions}
             />
           </div>
         </div>
@@ -416,6 +452,8 @@ export default function HotelListingPage() {
             filters={filters}
             setFilters={setFilters}
             resetFilters={resetFilters}
+            branchOptions={branchOptions}
+            typeOptions={typeOptions}
           />
 
           <div>

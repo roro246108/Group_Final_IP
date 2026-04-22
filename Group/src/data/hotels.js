@@ -1,22 +1,22 @@
-import Standard from "../assets/Images/Standard.jpg";
-import Standard2 from "../assets/Images/Standard2.jpg";
-import Standard3 from "../assets/Images/Standard3.jpg";
-import Standard4 from "../assets/Images/Standard4.jpg";
+import Standard from "/Images/Standard.jpg";
+import Standard2 from "/Images/Standard2.jpg";
+import Standard3 from "/Images/Standard3.jpg";
+import Standard4 from "/Images/Standard4.jpg";
 
-import Deluxe from "../assets/Images/Deluxe.jpg";
-import Deluxe2 from "../assets/Images/Deluxe2.jpg";
-import Deluxe3 from "../assets/Images/Deluxe3.jpg";
-import Deluxe4 from "../assets/Images/Deluxe4.jpg";
+import Deluxe from "/Images/Deluxe.jpg";
+import Deluxe2 from "/Images/Deluxe2.jpg";
+import Deluxe3 from "/Images/Deluxe3.jpg";
+import Deluxe4 from "/Images/Deluxe4.jpg";
 
-import Suite from "../assets/Images/Suite.jpg";
-import Suite2 from "../assets/Images/Suite2.jpg";
-import Suite3 from "../assets/Images/Suite3.jpg";
-import Suite4 from "../assets/Images/Suite4.jpg";
+import Suite from "/Images/Suite.jpg";
+import Suite2 from "/Images/Suite2.jpg";
+import Suite3 from "/Images/Suite3.jpg";
+import Suite4 from "/Images/Suite4.jpg";
 
-import Penthouse1 from "../assets/Images/Penthouse1.jpg";
-import Penthouse2 from "../assets/Images/Penthouse (2).jpg";
-import Penthouse3 from "../assets/Images/Penthouse3.jpg";
-import Penthouse4 from "../assets/Images/Penthouse4.jpg";
+import Penthouse1 from "/Images/Penthouse1.jpg";
+import Penthouse2 from "/Images/Penthouse (2).jpg";
+import Penthouse3 from "/Images/Penthouse3.jpg";
+import Penthouse4 from "/Images/Penthouse4.jpg";
 import CairoBranchImg from "../assets/Images/Cairo_Branch.png";
 import AinElSokhnaBranchImg from "../assets/Images/Ain_El_Sokhna_Branch.png";
 import SharmBranchImg from "../assets/Images/Sharm_Branch.png";

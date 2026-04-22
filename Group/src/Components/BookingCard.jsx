@@ -3,7 +3,8 @@ export default function BookingCard({
   checkOut,
   setCheckIn,
   setCheckOut,
-  onCheckAvailability
+  onCheckAvailability,
+  isLoading = false
 }) {
   return (
     <div className="bg-[#edf7ff] shadow-lg rounded-xl p-6">
@@ -22,6 +23,7 @@ export default function BookingCard({
           value={checkIn}
           onChange={(e)=>setCheckIn(e.target.value)}
           className="w-full border rounded p-2 mt-1"
+          disabled={isLoading}
         />
       </div>
 
@@ -35,14 +37,16 @@ export default function BookingCard({
           value={checkOut}
           onChange={(e)=>setCheckOut(e.target.value)}
           className="w-full border rounded p-2 mt-1"
+          disabled={isLoading}
         />
       </div>
 
       <button
         onClick={onCheckAvailability}
-        className="w-full mt-4 bg-[#1e3a8a] text-white py-3 rounded-lg hover:bg-white hover:text-[#1e3a8a] border border-[#1e3a8a] transition duration-300"
+        disabled={isLoading}
+        className={`w-full mt-4 bg-[#1e3a8a] text-white py-3 rounded-lg hover:bg-white hover:text-[#1e3a8a] border border-[#1e3a8a] transition duration-300 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        Check Availability
+        {isLoading ? 'Checking Availability...' : 'Check Availability'}
       </button>
 
     </div>

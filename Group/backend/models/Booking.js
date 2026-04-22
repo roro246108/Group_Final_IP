@@ -1,75 +1,33 @@
 import mongoose from "mongoose";
 const bookingSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true,
-    trim: true
-  },
+  name: { type: String, required: true, trim: true },
+  email: { type: String, required: true, trim: true, lowercase: true },
+  phone: { type: String, required: true, trim: true },
 
-  email: { 
-    type: String, 
-    required: true,
-    lowercase: true,
-    match: [/^\S+@\S+\.\S+$/, "Invalid email"]
-  },
+  roomName: { type: String, trim: true },
+  price: { type: Number, min: 0 },
+  nights: { type: Number, min: 1 },
+  total: { type: Number, min: 0 },
 
-  phone: { 
-    type: String, 
-    required: true 
-  },
+  // added for home page search / availability
+  branch: { type: String, trim: true },
+  guests: { type: Number, min: 1 },
+
+  checkIn: { type: Date },
+  checkOut: { type: Date },
 
   status: {
     type: String,
-    enum: ["Pending", "Confirmed", "Cancelled"],
-    default: "Pending"
+    enum: ["pending", "confirmed", "cancelled"],
+    default: "confirmed",
   },
 
-  roomName: { 
-    type: String 
+  userId: { type: String },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
   },
-
-  price: { 
-    type: Number,
-    required: true,
-    min: 0
-  },
-
-  nights: { 
-    type: Number,
-    required: true,
-    min: 1
-  },
-
-  total: { 
-    type: Number,
-    required: true,
-    min: 0
-  },
-
-  notes: String,
-
-  payment: {
-    type: [String],
-    default: ["Booking created"]
-  },
-
-  checkIn: { 
-    type: Date, 
-    required: true 
-  },
-
-  checkOut: { 
-    type: Date, 
-    required: true 
-  },
-
- 
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
-  }
-
-}, { timestamps: true }); 
+});
 
 export default mongoose.model("Booking", bookingSchema);

@@ -1,6 +1,7 @@
 import { Heart, MapPin, Star, Users, BedDouble, Bath } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useFavorites } from "../Context/FavoritesContext";
+import { getSafeRoomImage } from "../utils/roomMedia";
 
 export default function HotelCard({ hotel }) {
   const favoritesContext = useFavorites?.() || {};
@@ -11,7 +12,10 @@ export default function HotelCard({ hotel }) {
     <div className="group overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className="relative overflow-hidden">
        <img
-  src={hotel.image}
+  src={getSafeRoomImage(hotel)}
+  onError={(e) => {
+    e.currentTarget.src = getSafeRoomImage({ type: hotel.type });
+  }}
   alt={hotel.roomName}
   className="w-full h-[260px] object-cover rounded-t-3xl transition duration-500 group-hover:scale-105"
 />
