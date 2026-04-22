@@ -2,10 +2,10 @@ import express from "express";
 import dotenv from "dotenv";
 import connectDB from "./db.js";
 
+dotenv.config({ path: "./backend/.env" });
+
 // middlewares
 import { globalMiddlewares } from "./MiddleWares/index.js";
-
-dotenv.config({ path: "./.env" });
 
 const app = express();
 const PORT = process.env.PORT || 5050;

@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useUser } from '../Context/UserContext';
 import { User, Mail, Phone, Globe, Calendar, Save, CheckCircle, Loader2, MapPin, Building2, ChevronDown } from 'lucide-react';
 
-export default function EditProfileForm() {
-  const { user, updateUser } = useUser();
-  
+export default function EditProfileForm({ initialData }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -20,32 +18,51 @@ export default function EditProfileForm() {
     dob: ''
   });
 
+  // Sync with the live data from ProfilePage
   useEffect(() => {
-    if (user) {
+    if (initialData) {
       setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        countryCode: user.countryCode || '+20',
-        phone: user.phone || '',
-        address: user.address || '',
-        city: user.city || '',
-        country: user.country || '',
-        dob: user.dob || ''
+        firstName: initialData.firstName || '',
+        lastName: initialData.lastName || '',
+        email: initialData.email || '',
+        countryCode: initialData.countryCode || '+20',
+        phone: initialData.phone || '',
+        address: initialData.address || '',
+        city: initialData.city || '',
+        country: initialData.country || '',
+        dob: initialData.dob ? initialData.dob.split('T')[0] : '' // Formatting date for HTML input
       });
     }
-  }, [user]);
+  }, [initialData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+    setError("");
+
     try {
-      await updateUser(formData);
-      setIsSaving(false);
-      setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 3000);
+      const token = localStorage.getItem('token');
+      // Using the MongoDB _id from Yousef's document
+      const response = await fetch(`http://localhost:5050/api/users/${initialData._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 3000);
+      } else {
+        const errData = await response.json();
+        setError(errData.message || "Failed to update profile");
+      }
     } catch (error) {
       console.error("Failed to update profile:", error);
+      setError("Server error. Check your backend connection.");
+    } finally {
       setIsSaving(false);
     }
   };
@@ -65,19 +82,26 @@ export default function EditProfileForm() {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-bold flex items-center gap-2">
+          <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className={labelClass}><User className="w-3.5 h-3.5" /> First Name</label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.firstName} placeholder="e.g. Zeinab" onChange={(e) => setFormData({...formData, firstName: e.target.value})} required />
+            <input type="text" className={inputClass} value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} required />
           </div>
         </div>
         <div>
           <label className={labelClass}><User className="w-3.5 h-3.5" /> Last Name</label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.lastName} placeholder="e.g. Mohamed" onChange={(e) => setFormData({...formData, lastName: e.target.value})} required />
+            <input type="text" className={inputClass} value={formData.lastName} onChange={(e) => setFormData({...formData, lastName: e.target.value})} required />
           </div>
         </div>
 
@@ -85,7 +109,7 @@ export default function EditProfileForm() {
           <label className={labelClass}><Mail className="w-3.5 h-3.5" /> Email Address</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="email" className={inputClass} value={formData.email} placeholder="e.g. zeinab@email.com" onChange={(e) => setFormData({...formData, email: e.target.value})} required />
+            <input type="email" className={inputClass} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} required />
           </div>
         </div>
 
@@ -96,24 +120,18 @@ export default function EditProfileForm() {
               <select 
                 value={formData.countryCode} 
                 onChange={(e) => setFormData({...formData, countryCode: e.target.value})}
-                className="w-full pl-3 pr-8 py-3 bg-[#f8fbff] border border-[#d7e6f3] rounded-xl text-[#26567e] font-medium appearance-none focus:ring-2 focus:ring-[#26567e]/20 outline-none transition-all cursor-pointer"
+                className="w-full pl-3 pr-8 py-3 bg-[#f8fbff] border border-[#d7e6f3] rounded-xl text-[#26567e] font-medium appearance-none outline-none cursor-pointer"
               >
-                <option value="+20">🇪🇬 +20</option>
-                <option value="+966">🇸🇦 +966</option>
-                <option value="+971">🇦🇪 +971</option>
-                <option value="+1">🇺🇸 +1</option>
+                <option value="+20">ðŸ‡ªðŸ‡¬ +20</option>
+                <option value="+966">ðŸ‡¸ðŸ‡¦ +966</option>
+                <option value="+971">ðŸ‡¦ðŸ‡ª +971</option>
+                <option value="+1">ðŸ‡ºðŸ‡¸ +1</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#26567e] pointer-events-none" />
             </div>
             <div className="relative flex-1">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-              <input 
-                type="tel" 
-                className={inputClass} 
-                value={formData.phone}
-                placeholder="100 000 0000"
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-              />
+              <input type="tel" className={inputClass} value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
             </div>
           </div>
         </div>
@@ -130,31 +148,30 @@ export default function EditProfileForm() {
           <label className={labelClass}><MapPin className="w-3.5 h-3.5" /> Street Address</label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.address} placeholder="e.g. 123 Nile Corniche" onChange={(e) => setFormData({...formData, address: e.target.value})} />
+            <input type="text" className={inputClass} value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} />
           </div>
         </div>
         <div>
           <label className={labelClass}><Building2 className="w-3.5 h-3.5" /> City</label>
           <div className="relative">
             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.city} placeholder="e.g. Cairo" onChange={(e) => setFormData({...formData, city: e.target.value})} />
+            <input type="text" className={inputClass} value={formData.city} onChange={(e) => setFormData({...formData, city: e.target.value})} />
           </div>
         </div>
         <div>
           <label className={labelClass}><Globe className="w-3.5 h-3.5" /> Country</label>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.country} placeholder="e.g. Egypt" onChange={(e) => setFormData({...formData, country: e.target.value})} />
+            <input type="text" className={inputClass} value={formData.country} onChange={(e) => setFormData({...formData, country: e.target.value})} />
           </div>
         </div>
       </div>
 
       <div className="mt-10 pt-6 border-t border-gray-100 flex items-center gap-4">
-        {/* UPDATED BUTTON COLORS BELOW */}
         <button 
           type="submit" 
           disabled={isSaving} 
-          className="flex items-center gap-2 bg-[#1557e7] hover:bg-[#1046ba] disabled:bg-slate-400 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-blue-100 transition-all active:scale-95"
+          className="flex items-center gap-2 bg-[#1557e7] hover:bg-[#1046ba] disabled:bg-slate-400 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all active:scale-95"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {isSaving ? 'Saving...' : 'Save Changes'}

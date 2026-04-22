@@ -114,8 +114,8 @@ export default function LoginPage() {
         }
 
         console.log("After saving:", {
-          localStorage: localStorage.getItem("token") ? "✓" : "✗",
-          sessionStorage: sessionStorage.getItem("token") ? "✓" : "✗"
+          localStorage: localStorage.getItem("token") ? "âœ“" : "âœ—",
+          sessionStorage: sessionStorage.getItem("token") ? "âœ“" : "âœ—"
         });
 
         refreshAuth();

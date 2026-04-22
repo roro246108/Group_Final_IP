@@ -6,10 +6,35 @@ export default function UserStats({ users = [] }) {
   const { darkMode } = useAdminThemeMode();
 
   const stats = [
-    { label: 'Total Users', value: users.length, icon: Users, color: 'text-blue-600', bg: darkMode ? 'bg-blue-900/30' : 'bg-blue-50' },
-    { label: 'Active Users', value: users.filter(u => u.status === 'active').length, icon: UserCheck, color: 'text-green-600', bg: darkMode ? 'bg-green-900/30' : 'bg-green-50' },
-    { label: 'Blocked Users', value: users.filter(u => u.status === 'blocked').length, icon: UserMinus, color: 'text-red-600', bg: darkMode ? 'bg-red-900/30' : 'bg-red-50' },
-    { label: 'Customers', value: users.filter(u => u.role === 'customer').length, icon: UserGroup, color: 'text-cyan-600', bg: darkMode ? 'bg-cyan-900/30' : 'bg-cyan-50' },
+    { 
+      label: 'Total Users', 
+      value: users.length, 
+      icon: Users, 
+      color: 'text-blue-600', 
+      bg: darkMode ? 'bg-blue-900/30' : 'bg-blue-50' 
+    },
+    { 
+      label: 'Active Users', 
+      value: users.filter(u => u.status === 'active').length, 
+      icon: UserCheck, 
+      color: 'text-green-600', 
+      bg: darkMode ? 'bg-green-900/30' : 'bg-green-50' 
+    },
+    { 
+      label: 'Blocked Users', 
+      value: users.filter(u => u.status === 'blocked').length, 
+      icon: UserMinus, 
+      color: 'text-red-600', 
+      bg: darkMode ? 'bg-red-900/30' : 'bg-red-50' 
+    },
+    { 
+      label: 'Customers', 
+      // Adjusted to filter for 'customer' or 'user' roles common in your DB
+      value: users.filter(u => u.role === 'customer' || u.role === 'user').length, 
+      icon: UserGroup, 
+      color: 'text-cyan-600', 
+      bg: darkMode ? 'bg-cyan-900/30' : 'bg-cyan-50' 
+    },
   ];
 
   return (
@@ -19,7 +44,7 @@ export default function UserStats({ users = [] }) {
           <div className="flex items-center justify-between">
             <div>
               <p className={`text-sm font-medium ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{stat.label}</p>
-              <h3 className="text-2xl font-bold mt-1">{stat.value}</h3>
+              <h3 className={`text-2xl font-bold mt-1 ${darkMode ? "text-white" : "text-gray-900"}`}>{stat.value}</h3>
             </div>
             <div className={`${stat.bg} ${stat.color} p-3 rounded-lg`}>
               <stat.icon size={24} />
