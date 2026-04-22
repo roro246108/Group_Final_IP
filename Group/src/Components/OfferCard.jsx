@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CountdownTimer from "./CountdownTimer";
+import { useAuth } from "../Context/AuthContext";
 
 const OfferCard = ({ offer, appliedPromo }) => {
   const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const finalPrice = appliedPromo
     ? (offer.discountedPrice * (1 - appliedPromo.discount / 100)).toFixed(0)
@@ -111,27 +113,33 @@ const OfferCard = ({ offer, appliedPromo }) => {
             )}
           </div>
 
-          {/* Book Now — navigates to booking page */}
+          {/* Book Now — navigates to booking page (login required) */}
           <button
             onClick={(e) => {
               e.stopPropagation();
+
               // Build a room object from the offer's hotel data so BookingCheckOut works
-              navigate("/booking", {
-                state: {
-                  room: {
-                    image:     offer.image,
-                    price:     offer.discountedPrice,
-                    roomName:  offer.roomName,
-                    branch:    offer.branch,
-                    guests:    offer.guests,
-                    beds:      offer.beds,
-                    baths:     offer.baths,
-                    size:      offer.size,
-                    rating:    offer.rating,
-                    amenities: offer.amenities || [],
-                  },
-                },
-              });
+              const room = {
+                image:     offer.image,
+                price:     offer.discountedPrice,
+                roomName:  offer.roomName,
+                branch:    offer.branch,
+                guests:    offer.guests,
+                beds:      offer.beds,
+                baths:     offer.baths,
+                size:      offer.size,
+                rating:    offer.rating,
+                amenities: offer.amenities || [],
+              };
+
+              // Guests must log in first
+              if (!isAuthenticated) {
+                alert("Please log in or create an account to book this offer.");
+                navigate("/login", { state: { from: "/offers", pendingRoom: room } });
+                return;
+              }
+
+              navigate("/booking", { state: { room } });
             }}
             className="px-8 z-30 py-2 rounded-md relative font-semibold
               after:-z-20 after:absolute after:h-1 after:w-1 after:bg-blue-400 after:left-5
