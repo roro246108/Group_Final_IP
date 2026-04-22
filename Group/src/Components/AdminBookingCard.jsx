@@ -41,7 +41,7 @@ export default function BookingCard({ booking, onViewDetails }) {
 
 </div>
 
-{/* Divider BELOW wave 👇 */}
+{/* Divider BELOW wave  */}
 <div className={`border-t-2 mt-10 ${darkMode ? "border-gray-600" : "border-gray-400"}`}></div>
 
   

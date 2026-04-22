@@ -2,6 +2,7 @@
 import express from "express";
 import {
   createBooking,
+  searchAvailability,
   getBookings,
   getBookingById,
   updateBooking,
@@ -12,6 +13,7 @@ import { protect } from "../MiddleWares/auth.js";
 
 const router = express.Router();
 
+router.post("/search", searchAvailability); // SEARCH availability
 router.get("/", getBookings); // GET all
 router.get("/:id", getBookingById); // GET one
 router.post("/", protect, createBooking); // CREATE

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import deluxeAlex from "../assets/Images/Deluxe.jpg";
-import suiteMarsa from "../assets/Images/Suite2.jpg";
-import penthouseSharm from "../assets/Images/Penthouse4.jpg";
+import deluxeAlex from "/Images/Deluxe.jpg";
+import suiteMarsa from "/Images/Suite2.jpg";
+import penthouseSharm from "/Images/Penthouse4.jpg";
 
 const offers = [
   {

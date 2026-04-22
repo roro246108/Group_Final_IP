@@ -1,13 +1,19 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { MapPin, Star, Sparkles } from "lucide-react";
 import BranchRoomsSection from "../Components/BranchRoomsSection";
-import hotels, { locations, branchDetails } from "../data/hotels";
+import { locations, branchDetails } from "../data/hotels";
 import Navbar from "../Components/Navbar";
 import Footer from "../Components/Footer";
+import { apiGet } from "../services/apiClient";
+import { normalizeRoomRecord } from "../utils/roomMedia";
 
 export default function UserBranchDetails() {
   const { slug } = useParams();
+
+  const [rooms, setRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [roomsError, setRoomsError] = useState("");
 
   const branchInfo = branchDetails.find((branch) => branch.slug === slug);
   const branchLocation = locations.find(
@@ -21,6 +27,25 @@ export default function UserBranchDetails() {
           ...branchLocation,
         }
       : null;
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        setLoadingRooms(true);
+        setRoomsError("");
+
+        const data = await apiGet("/rooms");
+        setRooms(data.map(normalizeRoomRecord));
+      } catch (error) {
+        console.error("Error fetching rooms:", error);
+        setRoomsError("Failed to load rooms.");
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+
+    fetchRooms();
+  }, []);
 
   if (!selectedBranch) {
     return (
@@ -63,7 +88,7 @@ export default function UserBranchDetails() {
       "An exclusive luxury experience with exceptional space, premium features, and top-tier comfort.",
   };
 
-  const branchRooms = hotels
+  const branchRooms = rooms
     .filter((room) => room.branch === selectedBranch.title)
     .map((room) => ({
       ...room,
@@ -76,7 +101,8 @@ export default function UserBranchDetails() {
           : "",
     }));
 
-  const branchLocationText = selectedBranch.address || selectedBranch.city || "Egypt";
+  const branchLocationText =
+    selectedBranch.address || selectedBranch.city || "Egypt";
 
   return (
     <>
@@ -195,7 +221,14 @@ export default function UserBranchDetails() {
         </div>
       </section>
 
-      <BranchRoomsSection rooms={branchRooms} />
+      {loadingRooms ? (
+        <div className="px-6 pb-12 text-center text-[#5f6f8c]">Loading rooms...</div>
+      ) : roomsError ? (
+        <div className="px-6 pb-12 text-center text-red-500">{roomsError}</div>
+      ) : (
+        <BranchRoomsSection rooms={branchRooms} />
+      )}
+
       <Footer />
     </>
   );

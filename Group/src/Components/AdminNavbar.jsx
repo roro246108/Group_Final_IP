@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Menu, Sun, Moon, Sparkles, Globe, ChevronDown, Check } from "lucide-react";
 import useAdminThemeMode from "../hooks/useAdminThemeMode";
 import { useLanguage } from "../Context/LanguageContext";
@@ -10,7 +11,8 @@ const languages = [
   { code: "es", label: "Español", flag: "🇪🇸" },
 ];
 
-function AdminNavbar({ onToggleSidebar }) {
+function AdminNavbar({ onToggleSidebar, title }) {
+  const location = useLocation();
   const { darkMode, toggleDarkMode } = useAdminThemeMode();
   const { language, setLanguage, t } = useLanguage();
   const [langOpen, setLangOpen] = useState(false);
@@ -32,6 +34,18 @@ function AdminNavbar({ onToggleSidebar }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const pageTitle = (() => {
+    if (location.pathname.startsWith("/admin/dashboard")) return t("sidebar.dashboard") || "Dashboard";
+    if (location.pathname.startsWith("/admin/rooms")) return t("sidebar.roomManagement") || "Room Management";
+    if (location.pathname.startsWith("/admin/bookings")) return t("sidebar.bookings") || "Bookings";
+    if (location.pathname.startsWith("/admin/usermanagement")) return t("sidebar.userManagement") || "User Management";
+    if (location.pathname.startsWith("/admin/hotels")) return t("sidebar.hotelManagement") || "Hotel Management";
+    if (location.pathname.startsWith("/admin/offers")) return t("sidebar.offers") || "Offers";
+    if (location.pathname.startsWith("/admin/settings")) return t("sidebar.settings") || "Settings";
+
+    return title || t("navbar.title") || "Admin";
+  })();
+
   return (
     <div className="admin-route-navbar flex justify-between items-center bg-[#163f8f] p-4 shadow">
       <div className="flex items-center gap-3">
@@ -43,7 +57,7 @@ function AdminNavbar({ onToggleSidebar }) {
         </button>
 
         <h1 className="text-lg font-semibold text-white">
-          {t("navbar.title")}
+          {pageTitle}
         </h1>
       </div>
 

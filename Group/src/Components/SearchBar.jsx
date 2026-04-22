@@ -8,6 +8,7 @@ export default function SearchBar({
   onSearch,
   onSearchClick,
   resultCount,
+  branchOptions = [],
 }) {
   const submitHandler = onSearchClick || onSearch;
 
@@ -66,11 +67,21 @@ export default function SearchBar({
                 className="w-full appearance-none rounded-2xl border border-[#d7e3ef] bg-white px-5 py-4 text-[#223a5e] outline-none"
               >
                 <option value="">Select branch</option>
-                <option>Cairo Branch</option>
-                <option>Alexandria Branch</option>
-                <option>Marsa Alam Branch</option>
-                <option>Sharm El Sheikh Branch</option>
-                <option>Ain El Sokhna Branch</option>
+                {branchOptions.length > 0 ? (
+                  branchOptions.map((branch) => (
+                    <option key={branch} value={branch}>
+                      {branch}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option>Cairo Branch</option>
+                    <option>Alexandria Branch</option>
+                    <option>Marsa Alam Branch</option>
+                    <option>Sharm El Sheikh Branch</option>
+                    <option>Ain El Sokhna Branch</option>
+                  </>
+                )}
               </select>
               <ChevronDown
                 size={18}

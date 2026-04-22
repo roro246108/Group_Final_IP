@@ -1,14 +1,13 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X, UserCircle, LogOut, LayoutDashboard } from "lucide-react";
+import { Menu, X, UserCircle, LayoutDashboard } from "lucide-react";
 import logoBlue from "../assets/Images/blue _wave.png";
 import logoWhite from "../assets/Images/white_logo.png";
 import { useAuth } from "../Context/AuthContext";
 
 export default function Navbar() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { currentUser, isAuthenticated, logout } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
 
   const isAdminRoute = location.pathname.startsWith("/admin");
   if (isAdminRoute) return null;
@@ -41,12 +40,6 @@ export default function Navbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const handleLogout = async () => {
-    await logout();
-    setMenuOpen(false);
-    navigate("/");
-  };
 
   const navTextColor =
     isHomePage && !scrolledUpStyle ? "text-white" : "text-[#223a5e]";
@@ -122,12 +115,6 @@ export default function Navbar() {
             Contact Us
           </Link>
 
-           <Link
-            to="/profile"
-            className="whitespace-nowrap hover:text-[#7ea0d6] transition-colors duration-300"
-          >
-            Profile
-          </Link>
         </div>
 
         <div className="hidden md:flex items-center justify-end gap-3 w-[190px] lg:w-[280px]">
@@ -159,22 +146,16 @@ export default function Navbar() {
                 </Link>
               )}
 
-              <div
-                className={`flex items-center gap-2 px-3 py-2 rounded-full ${profileTextClass}`}
+              <Link
+                to="/profile"
+                className={`flex items-center gap-2 px-3 py-2 rounded-full hover:text-[#7ea0d6] transition-colors duration-300 ${profileTextClass}`}
               >
                 <UserCircle size={22} />
                 <span className="text-sm font-medium whitespace-nowrap">
                   {currentUser?.fullName}
                 </span>
-              </div>
+              </Link>
 
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2.5 rounded-full bg-red-500 text-white text-sm font-medium hover:bg-red-600 hover:-translate-y-1 hover:scale-105 transition-all duration-300 shadow-sm hover:shadow-lg flex items-center gap-2"
-              >
-                <LogOut size={16} />
-                Logout
-              </button>
             </>
           )}
         </div>
@@ -233,9 +214,6 @@ export default function Navbar() {
           <Link to="/help" onClick={() => setMenuOpen(false)} className="hover:text-[#7ea0d6]">
             Contact Us
           </Link>
-           <Link to="/profile" onClick={() => setMenuOpen(false)} className="hover:text-[#7ea0d6]">
-            Profile
-          </Link>
 
           {!isAuthenticated ? (
             <div className="flex flex-col gap-3 pt-3">
@@ -267,18 +245,15 @@ export default function Navbar() {
                 </Link>
               )}
 
-              <div className="flex items-center justify-center gap-2 py-2">
+              <Link
+                to="/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center justify-center gap-2 py-2 hover:text-[#7ea0d6]"
+              >
                 <UserCircle size={22} />
                 <span className="font-medium">{currentUser?.fullName}</span>
-              </div>
+              </Link>
 
-              <button
-                onClick={handleLogout}
-                className="px-5 py-2.5 rounded-full bg-red-500 text-white text-sm font-medium text-center hover:bg-red-600 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <LogOut size={16} />
-                Logout
-              </button>
             </div>
           )}
         </div>

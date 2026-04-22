@@ -2,6 +2,9 @@ import { Heart, MapPin, Star, Users, BedDouble, Bath } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
+import { useFavorites } from "../Context/FavoritesContext";
+import { getSafeRoomImage } from "../utils/roomMedia";
+
 export default function HotelCard({ hotel }) {
   const navigate = useNavigate();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -74,11 +77,14 @@ export default function HotelCard({ hotel }) {
   return (
     <div className="group overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className="relative overflow-hidden">
-        <img
-          src={hotel.image}
-          alt={hotel.roomName}
-          className="h-[260px] w-full rounded-t-3xl object-cover transition duration-500 group-hover:scale-105"
-        />
+       <img
+  src={getSafeRoomImage(hotel)}
+  onError={(e) => {
+    e.currentTarget.src = getSafeRoomImage({ type: hotel.type });
+  }}
+  alt={hotel.roomName}
+  className="w-full h-[260px] object-cover rounded-t-3xl transition duration-500 group-hover:scale-105"
+/>
 
         <span
           className={`absolute left-4 top-4 rounded-full px-3 py-1 text-xs font-semibold ${
