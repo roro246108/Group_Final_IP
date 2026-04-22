@@ -79,17 +79,14 @@ export default function HomeMainSection() {
         }),
       });
 
-      const contentType = response.headers.get("content-type");
-
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        throw new Error(text || "Server returned a non-JSON response");
-      }
-
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        alert(data.message || "Search failed.");
+        const message =
+          response.status === 409
+            ? "This room is already reserved for these dates."
+            : data.message || "No rooms available matching your criteria.";
+        alert(message);
         return;
       }
 

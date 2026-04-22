@@ -11,7 +11,18 @@ export function getRoomFallbackImage(room = {}) {
 
 export function getSafeRoomImage(room = {}) {
   const image = typeof room.image === "string" ? room.image.trim() : "";
-  return image || getRoomFallbackImage(room);
+
+  if (!image) return getRoomFallbackImage(room);
+  if (
+    image.startsWith("/") ||
+    image.startsWith("http://") ||
+    image.startsWith("https://") ||
+    image.startsWith("data:")
+  ) {
+    return image;
+  }
+
+  return `/Images/${image}`;
 }
 
 export function normalizeRoomRecord(room = {}) {
@@ -19,7 +30,9 @@ export function normalizeRoomRecord(room = {}) {
   const image = getSafeRoomImage(room);
 
   return {
+    _id: room._id || room.id,
     id: room._id || room.id,
+    hotelId: room.hotelId || room.branch || room.hotelName || "",
     hotelName: room.hotelName || "Blue Wave Hotel",
     roomName: room.roomName || room.name || "Room",
     name: room.name || room.roomName || "Room",

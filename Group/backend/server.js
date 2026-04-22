@@ -6,6 +6,8 @@ import connectDB from "./db.js";
 import authRoutes from "./routes/authRoutes.js";
 import hotelRoutes from "./routes/hotelRoutes.js";
 import favoriteRoutes from "./routes/favoriteRoutes.js";
+import roomRoutes from "./routes/roomRoutes.js";
+import bookingRoutes from "./routes/bookingRouts.js";
 
 // middlewares
 import { globalMiddlewares } from "./MiddleWares/index.js";
@@ -34,6 +36,14 @@ app.get("/", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/hotels", hotelRoutes);
 app.use("/favorites", favoriteRoutes);
+app.use("/rooms", roomRoutes);
+app.use("/bookings", bookingRoutes);
+
+app.use("/api/auth", authRoutes);
+app.use("/api/hotels", hotelRoutes);
+app.use("/api/favorites", favoriteRoutes);
+app.use("/api/rooms", roomRoutes);
+app.use("/api/bookings", bookingRoutes);
 
 connectDB().then(() => {
   app.listen(PORT, () => {

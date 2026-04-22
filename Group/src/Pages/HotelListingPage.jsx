@@ -6,13 +6,23 @@ import SearchBar from "../Components/SearchBar";
 import FilterSidebar from "../Components/FilterSidebar";
 import HotelCard from "../Components/HotelCard";
 import Footer from "../Components/Footer";
-import { apiGet } from "../services/apiClient";
-import { normalizeRoomRecord } from "../utils/roomMedia";
+import { apiGet, apiPost } from "../services/apiClient";
+import { getSafeRoomImage, normalizeRoomRecord } from "../utils/roomMedia";
 import Background1 from "../assets/Images/Background.jpg";
 import Background2 from "../assets/Images/Background2.jpg";
 import Background3 from "../assets/Images/Backgroud3.jpg";
 import Background4 from "../assets/Images/Background4.jpg";
 import Background5 from "../assets/Images/Background 5.jpg";
+
+const DEFAULT_BRANCH_OPTIONS = [
+  "Cairo Branch",
+  "Alexandria Branch",
+  "Marsa Alam Branch",
+  "Sharm El Sheikh Branch",
+  "Ain El Sokhna Branch",
+];
+
+const DEFAULT_ROOM_TYPE_OPTIONS = ["Standard", "Deluxe", "Suite", "Penthouse"];
 
 export default function HotelListingPage() {
   const location = useLocation();
@@ -23,6 +33,7 @@ export default function HotelListingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [animateText, setAnimateText] = useState(true);
   const [rooms, setRooms] = useState([]);
+  const [allRooms, setAllRooms] = useState([]);
   const [favoriteCount, setFavoriteCount] = useState(0);
 
   const normalizeGuests = (value) => {
@@ -37,6 +48,7 @@ export default function HotelListingPage() {
     checkOut: initialState.checkOut || "",
     guests: normalizeGuests(initialState.guests) || "",
     maxPrice: 1000,
+    roomType: initialState.roomType || "",
     type: "",
     branch: initialState.branch || "",
     rating: "",
@@ -79,45 +91,52 @@ export default function HotelListingPage() {
     },
   ];
 
-  const fetchListingRooms = async (searchValues = {}) => {
+  const fetchAllRooms = async () => {
     try {
-      setLoading(true);
-
-      const params = new URLSearchParams();
-
-      if (searchValues.branch) params.append("branch", searchValues.branch);
-      if (searchValues.guests) params.append("guests", searchValues.guests);
-      if (searchValues.checkIn) params.append("checkIn", searchValues.checkIn);
-      if (searchValues.checkOut) params.append("checkOut", searchValues.checkOut);
-
-      const queryString = params.toString();
-      const url = queryString
-        ? `http://localhost:5050/hotels/listing-rooms?${queryString}`
-        : `http://localhost:5050/hotels/listing-rooms`;
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to fetch rooms");
-      }
-
-      setRooms(data.rooms || []);
+      const data = await apiGet("/rooms");
+      const normalizedRooms = data.map(normalizeRoomRecord);
+      setAllRooms(normalizedRooms);
+      return normalizedRooms;
     } catch (error) {
-      console.error("Failed to fetch listing rooms:", error.message);
-      setRooms([]);
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch rooms:", error.message);
+      setAllRooms([]);
+      return [];
     }
   };
 
   useEffect(() => {
-    fetchListingRooms({
-      branch: initialState.branch || "",
-      guests: normalizeGuests(initialState.guests) || "",
-      checkIn: initialState.checkIn || "",
-      checkOut: initialState.checkOut || "",
-    });
+    const loadInitialRooms = async () => {
+      try {
+        setLoading(true);
+        const databaseRooms = await fetchAllRooms();
+
+        if (
+          initialState.branch &&
+          initialState.checkIn &&
+          initialState.checkOut &&
+          initialState.guests
+        ) {
+          const data = await apiPost("/bookings/search", {
+            branch: initialState.branch,
+            roomType: initialState.roomType || "",
+            checkIn: initialState.checkIn,
+            checkOut: initialState.checkOut,
+            guests: Number(initialState.guests),
+          });
+          setRooms((data.rooms || []).map(normalizeRoomRecord));
+          return;
+        }
+
+        setRooms(databaseRooms);
+      } catch (error) {
+        console.error("Failed to load searched rooms:", error.message);
+        setRooms([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialRooms();
   }, []);
 
   useEffect(() => {
@@ -147,30 +166,6 @@ export default function HotelListingPage() {
     };
 
     fetchFavoriteCount();
-    let cancelled = false;
-
-    const fetchRooms = async () => {
-      try {
-        setLoading(true);
-        const data = await apiGet("/rooms");
-
-        if (cancelled) return;
-
-        setRooms(data.map(normalizeRoomRecord));
-      } catch {
-        if (!cancelled) {
-          setRooms(hotelsData || []);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetchRooms();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   useEffect(() => {
@@ -186,24 +181,38 @@ export default function HotelListingPage() {
     return () => clearInterval(sliderInterval);
   }, [heroImages.length]);
 
-  const handleSearchClick = (values) => {
+  const handleSearchClick = async (values) => {
     const updatedFilters = {
       ...filters,
       destination: values.branch || "",
       branch: values.branch || "",
+      roomType: values.roomType || "",
+      type: values.roomType || "",
       checkIn: values.checkIn || "",
       checkOut: values.checkOut || "",
       guests: normalizeGuests(values.guests) || "",
     };
 
-    setFilters(updatedFilters);
+    try {
+      setLoading(true);
 
-    fetchListingRooms({
-      branch: values.branch || "",
-      guests: normalizeGuests(values.guests) || "",
-      checkIn: values.checkIn || "",
-      checkOut: values.checkOut || "",
-    });
+      const data = await apiPost("/bookings/search", {
+        branch: values.branch,
+        roomType: values.roomType || "",
+        checkIn: values.checkIn,
+        checkOut: values.checkOut,
+        guests: Number(values.guests),
+      });
+
+      setFilters(updatedFilters);
+      setRooms((data.rooms || []).map(normalizeRoomRecord));
+    } catch (error) {
+      console.error("Search failed:", error.message);
+      setFilters(updatedFilters);
+      setRooms([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetFilters = () => {
@@ -213,11 +222,20 @@ export default function HotelListingPage() {
       checkOut: prev.checkOut,
       guests: prev.guests,
       maxPrice: 1000,
+      roomType: "",
       type: "",
       branch: "",
       rating: "",
       sortBy: "popularity",
     }));
+    if (allRooms.length > 0) {
+      setRooms(allRooms);
+    } else {
+      setLoading(true);
+      fetchAllRooms()
+        .then((databaseRooms) => setRooms(databaseRooms))
+        .finally(() => setLoading(false));
+    }
   };
 
   const filteredRooms = useMemo(() => {
@@ -272,23 +290,40 @@ export default function HotelListingPage() {
   }, [rooms, filters]);
 
   const featuredRooms = useMemo(() => {
-    return rooms.filter((room) => room.featured).slice(0, 5);
-  }, [rooms]);
+    const databaseFeaturedRooms = allRooms.filter((room) => room.featured);
+    const sourceRooms =
+      databaseFeaturedRooms.length > 0
+        ? databaseFeaturedRooms
+        : [...allRooms].sort((a, b) => b.rating - a.rating);
+
+    return sourceRooms.slice(0, 5);
+  }, [allRooms]);
 
   const branchOptions = useMemo(
     () =>
-      [...new Set(rooms.map((room) => room.branch).filter(Boolean))].sort(),
-    [rooms]
+      [
+        ...new Set([
+          ...DEFAULT_BRANCH_OPTIONS,
+          ...allRooms.map((room) => room.branch).filter(Boolean),
+        ]),
+      ].sort(),
+    [allRooms]
   );
 
   const typeOptions = useMemo(
-    () => [...new Set(rooms.map((room) => room.type).filter(Boolean))].sort(),
-    [rooms]
+    () =>
+      [
+        ...new Set([
+          ...DEFAULT_ROOM_TYPE_OPTIONS,
+          ...allRooms.map((room) => room.type).filter(Boolean),
+        ]),
+      ].sort(),
+    [allRooms]
   );
 
   const uniqueBranchesCount = useMemo(() => {
-    return new Set(rooms.map((room) => room.branch)).size;
-  }, [rooms]);
+    return new Set(allRooms.map((room) => room.branch).filter(Boolean)).size;
+  }, [allRooms]);
 
   const currentHero = heroContent[currentSlide];
 
@@ -387,6 +422,7 @@ export default function HotelListingPage() {
             <SearchBar
               filters={{
                 branch: filters.branch,
+                roomType: filters.roomType,
                 checkIn: filters.checkIn,
                 checkOut: filters.checkOut,
                 guests: filters.guests,
@@ -395,6 +431,7 @@ export default function HotelListingPage() {
               onSearchClick={handleSearchClick}
               resultCount={filteredRooms.length}
               branchOptions={branchOptions}
+              roomTypeOptions={typeOptions}
             />
           </div>
         </div>
@@ -465,8 +502,11 @@ export default function HotelListingPage() {
               className="group relative block min-h-[360px] min-w-[320px] flex-shrink-0 overflow-hidden rounded-3xl md:min-w-[360px]"
             >
               <img
-                src={room.image}
+                src={getSafeRoomImage(room)}
                 alt={room.roomName}
+                onError={(e) => {
+                  e.currentTarget.src = getSafeRoomImage({ type: room.type });
+                }}
                 className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/20" />
@@ -521,7 +561,7 @@ export default function HotelListingPage() {
             ) : filteredRooms.length > 0 ? (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 {filteredRooms.map((room) => (
-                  <HotelCard key={room._id} hotel={room} />
+                  <HotelCard key={room._id || room.id} hotel={room} />
                 ))}
               </div>
             ) : (
