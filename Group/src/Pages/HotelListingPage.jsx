@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Sparkles, Heart } from "lucide-react";
-import { useFavorites } from "../Context/FavoritesContext";
 import Navbar from "../Components/Navbar";
 import SearchBar from "../Components/SearchBar";
 import FilterSidebar from "../Components/FilterSidebar";
 import HotelCard from "../Components/HotelCard";
-import hotelsData from "../data/hotels.js";
 import Footer from "../Components/Footer";
 import Background1 from "../assets/Images/Background.jpg";
 import Background2 from "../assets/Images/Background2.jpg";
@@ -19,18 +17,16 @@ export default function HotelListingPage() {
   const initialState = location.state || {};
   const scrollRef = useRef(null);
 
-  const favoritesContext = useFavorites?.() || {};
-  const favorites = favoritesContext.favorites || [];
-
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [animateText, setAnimateText] = useState(true);
   const [rooms, setRooms] = useState([]);
+  const [favoriteCount, setFavoriteCount] = useState(0);
 
   const normalizeGuests = (value) => {
     if (!value) return "";
-    const parsed = parseInt(value);
-    return isNaN(parsed) ? "" : parsed;
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? "" : parsed;
   };
 
   const [filters, setFilters] = useState({
@@ -77,13 +73,78 @@ export default function HotelListingPage() {
     {
       badge: "Blue Wave Hotel",
       title: "Relax, search, and book with confidence",
-      text: "Explore our best rooms with smart filters, favorites, and featured stays.",
+      text: "Explore our best rooms with smart filters and featured stays.",
     },
   ];
 
+  const fetchListingRooms = async (searchValues = {}) => {
+    try {
+      setLoading(true);
+
+      const params = new URLSearchParams();
+
+      if (searchValues.branch) params.append("branch", searchValues.branch);
+      if (searchValues.guests) params.append("guests", searchValues.guests);
+      if (searchValues.checkIn) params.append("checkIn", searchValues.checkIn);
+      if (searchValues.checkOut) params.append("checkOut", searchValues.checkOut);
+
+      const queryString = params.toString();
+      const url = queryString
+        ? `http://localhost:5050/hotels/listing-rooms?${queryString}`
+        : `http://localhost:5050/hotels/listing-rooms`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to fetch rooms");
+      }
+
+      setRooms(data.rooms || []);
+    } catch (error) {
+      console.error("Failed to fetch listing rooms:", error.message);
+      setRooms([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setRooms(hotelsData || []);
-    setLoading(false);
+    fetchListingRooms({
+      branch: initialState.branch || "",
+      guests: normalizeGuests(initialState.guests) || "",
+      checkIn: initialState.checkIn || "",
+      checkOut: initialState.checkOut || "",
+    });
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    const fetchFavoriteCount = async () => {
+      if (!token) {
+        setFavoriteCount(0);
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:5050/favorites", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setFavoriteCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch favorite count:", error.message);
+      }
+    };
+
+    fetchFavoriteCount();
   }, []);
 
   useEffect(() => {
@@ -100,28 +161,37 @@ export default function HotelListingPage() {
   }, [heroImages.length]);
 
   const handleSearchClick = (values) => {
-    setFilters((prev) => ({
-      ...prev,
+    const updatedFilters = {
+      ...filters,
       destination: values.branch || "",
       branch: values.branch || "",
       checkIn: values.checkIn || "",
       checkOut: values.checkOut || "",
-      guests: normalizeGuests(values.guests) || prev.guests,
-    }));
+      guests: normalizeGuests(values.guests) || "",
+    };
+
+    setFilters(updatedFilters);
+
+    fetchListingRooms({
+      branch: values.branch || "",
+      guests: normalizeGuests(values.guests) || "",
+      checkIn: values.checkIn || "",
+      checkOut: values.checkOut || "",
+    });
   };
 
   const resetFilters = () => {
-    setFilters({
+    setFilters((prev) => ({
       destination: "",
-      checkIn: "",
-      checkOut: "",
-      guests: "",
+      checkIn: prev.checkIn,
+      checkOut: prev.checkOut,
+      guests: prev.guests,
       maxPrice: 1000,
       type: "",
       branch: "",
       rating: "",
       sortBy: "popularity",
-    });
+    }));
   };
 
   const filteredRooms = useMemo(() => {
@@ -134,12 +204,12 @@ export default function HotelListingPage() {
 
       result = result.filter(
         (room) =>
-          room.hotelName.toLowerCase().includes(keyword) ||
-          room.branch.toLowerCase().includes(keyword) ||
-          room.city.toLowerCase().includes(keyword) ||
-          room.location.toLowerCase().includes(keyword) ||
-          room.roomName.toLowerCase().includes(keyword) ||
-          room.type.toLowerCase().includes(keyword)
+          room.hotelName?.toLowerCase().includes(keyword) ||
+          room.branch?.toLowerCase().includes(keyword) ||
+          room.city?.toLowerCase().includes(keyword) ||
+          room.location?.toLowerCase().includes(keyword) ||
+          room.roomName?.toLowerCase().includes(keyword) ||
+          room.type?.toLowerCase().includes(keyword)
       );
     }
 
@@ -158,8 +228,8 @@ export default function HotelListingPage() {
     }
 
     if (filters.guests) {
-      const guestNumber = parseInt(filters.guests);
-      if (!isNaN(guestNumber)) {
+      const guestNumber = parseInt(filters.guests, 10);
+      if (!Number.isNaN(guestNumber)) {
         result = result.filter((room) => room.guests >= guestNumber);
       }
     }
@@ -168,9 +238,7 @@ export default function HotelListingPage() {
       result.sort((a, b) => a.price - b.price);
     } else if (filters.sortBy === "high-low") {
       result.sort((a, b) => b.price - a.price);
-    } else if (filters.sortBy === "rating") {
-      result.sort((a, b) => b.rating - a.rating);
-    } else if (filters.sortBy === "popularity") {
+    } else if (filters.sortBy === "rating" || filters.sortBy === "popularity") {
       result.sort((a, b) => b.rating - a.rating);
     }
 
@@ -207,9 +275,7 @@ export default function HotelListingPage() {
               <div
                 key={index}
                 className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ${
-                  index === currentSlide
-                    ? "scale-100 opacity-100"
-                    : "scale-105 opacity-0"
+                  index === currentSlide ? "scale-100 opacity-100" : "scale-105 opacity-0"
                 }`}
                 style={{ backgroundImage: `url(${image})` }}
               />
@@ -222,9 +288,7 @@ export default function HotelListingPage() {
               <div className="max-w-2xl px-6 md:px-10">
                 <div
                   className={`transition-all duration-500 ${
-                    animateText
-                      ? "translate-y-0 opacity-100"
-                      : "translate-y-6 opacity-0"
+                    animateText ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
                   }`}
                 >
                   <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white backdrop-blur-md">
@@ -252,7 +316,7 @@ export default function HotelListingPage() {
                       to="/favorites"
                       className="rounded-full border border-white/30 bg-white/10 px-6 py-3 font-semibold text-white backdrop-blur-md transition hover:-translate-y-1 hover:bg-white/20"
                     >
-                      Saved Rooms ({favorites.length})
+                      Saved Rooms ({favoriteCount})
                     </Link>
                   </div>
                 </div>
@@ -301,36 +365,24 @@ export default function HotelListingPage() {
       <section className="mx-auto max-w-7xl px-4 pt-10 md:px-6 lg:px-8">
         <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-3xl border border-[#e6eef7] bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-            <p className="text-sm font-medium text-[#5b7aa3]">
-              Available Branches
-            </p>
-            <h3 className="mt-2 text-4xl font-bold text-[#223a5e]">
-              {uniqueBranchesCount}
-            </h3>
+            <p className="text-sm font-medium text-[#5b7aa3]">Available Branches</p>
+            <h3 className="mt-2 text-4xl font-bold text-[#223a5e]">{uniqueBranchesCount}</h3>
             <p className="mt-2 text-sm text-slate-500">
               Discover different locations and room styles.
             </p>
           </div>
 
           <div className="rounded-3xl border border-[#e6eef7] bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-            <p className="text-sm font-medium text-[#5b7aa3]">
-              Featured Rooms
-            </p>
-            <h3 className="mt-2 text-4xl font-bold text-[#223a5e]">
-              {featuredRooms.length}
-            </h3>
+            <p className="text-sm font-medium text-[#5b7aa3]">Featured Rooms</p>
+            <h3 className="mt-2 text-4xl font-bold text-[#223a5e]">{featuredRooms.length}</h3>
             <p className="mt-2 text-sm text-slate-500">
               Handpicked premium rooms for a better stay.
             </p>
           </div>
 
           <div className="rounded-3xl border border-[#e6eef7] bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-            <p className="text-sm font-medium text-[#5b7aa3]">
-              Saved Favorites
-            </p>
-            <h3 className="mt-2 text-4xl font-bold text-[#223a5e]">
-              {favorites.length}
-            </h3>
+            <p className="text-sm font-medium text-[#5b7aa3]">Saved Favorites</p>
+            <h3 className="mt-2 text-4xl font-bold text-[#223a5e]">{favoriteCount}</h3>
             <p className="mt-2 text-sm text-slate-500">
               Keep your preferred rooms in one place.
             </p>
@@ -344,9 +396,7 @@ export default function HotelListingPage() {
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#2f6fb3]">
               Featured Stays
             </p>
-            <h2 className="mt-2 text-3xl font-bold text-[#223a5e]">
-              Premium Blue Wave Rooms
-            </h2>
+            <h2 className="mt-2 text-3xl font-bold text-[#223a5e]">Premium Blue Wave Rooms</h2>
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
@@ -371,7 +421,7 @@ export default function HotelListingPage() {
         >
           {featuredRooms.map((room) => (
             <Link
-              key={room.id}
+              key={room._id}
               to="/booking"
               state={{ selectedRoom: room }}
               className="group relative block min-h-[360px] min-w-[320px] flex-shrink-0 overflow-hidden rounded-3xl md:min-w-[360px]"
@@ -407,7 +457,7 @@ export default function HotelListingPage() {
             className="inline-flex items-center gap-2 rounded-2xl border border-[#dbe4f0] bg-white px-5 py-3 font-medium text-[#223a5e] shadow-sm transition hover:bg-[#eef4fb]"
           >
             <Heart size={18} className="fill-red-500 text-red-500" />
-            Favorites ({favorites.length})
+            Favorites ({favoriteCount})
           </Link>
         </div>
 
@@ -431,23 +481,20 @@ export default function HotelListingPage() {
             ) : filteredRooms.length > 0 ? (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 {filteredRooms.map((room) => (
-                  <HotelCard key={room.id} hotel={room} />
+                  <HotelCard key={room._id} hotel={room} />
                 ))}
               </div>
             ) : (
               <div className="rounded-3xl bg-white p-12 text-center shadow-md">
-                <h3 className="text-2xl font-bold text-[#223a5e]">
-                  No rooms found
-                </h3>
-                <p className="mt-2 text-slate-500">
-                  Try changing your search or filters.
-                </p>
+                <h3 className="text-2xl font-bold text-[#223a5e]">No rooms found</h3>
+                <p className="mt-2 text-slate-500">Try changing your search or filters.</p>
               </div>
             )}
           </div>
         </div>
       </section>
-       <Footer />
+
+      <Footer />
     </div>
   );
 }

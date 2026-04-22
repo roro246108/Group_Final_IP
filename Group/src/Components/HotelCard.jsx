@@ -1,20 +1,84 @@
 import { Heart, MapPin, Star, Users, BedDouble, Bath } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useFavorites } from "../Context/FavoritesContext";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 export default function HotelCard({ hotel }) {
-  const favoritesContext = useFavorites?.() || {};
-  const toggleFavorite = favoritesContext.toggleFavorite || (() => {});
-  const isFavoriteFn = favoritesContext.isFavorite || (() => false);
+  const navigate = useNavigate();
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!token) {
+        setIsFavorite(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:5050/favorites", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          const exists = (data.favorites || []).some(
+            (fav) => fav._id === hotel._id
+          );
+          setIsFavorite(exists);
+        }
+      } catch (error) {
+        console.error("Failed to load favorites:", error.message);
+      }
+    };
+
+    fetchFavorites();
+  }, [hotel._id, token]);
+
+  const handleFavoriteClick = async () => {
+    if (!token) {
+      alert("Please login first to add favorites.");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:5050/favorites/toggle", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          hotelId: hotel.hotelId,
+          roomId: hotel._id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update favorite");
+      }
+
+      setIsFavorite(data.action === "added");
+    } catch (error) {
+      console.error("Favorite error:", error.message);
+      alert(error.message);
+    }
+  };
 
   return (
     <div className="group overflow-hidden rounded-3xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className="relative overflow-hidden">
-       <img
-  src={hotel.image}
-  alt={hotel.roomName}
-  className="w-full h-[260px] object-cover rounded-t-3xl transition duration-500 group-hover:scale-105"
-/>
+        <img
+          src={hotel.image}
+          alt={hotel.roomName}
+          className="h-[260px] w-full rounded-t-3xl object-cover transition duration-500 group-hover:scale-105"
+        />
 
         <span
           className={`absolute left-4 top-4 rounded-full px-3 py-1 text-xs font-semibold ${
@@ -27,15 +91,13 @@ export default function HotelCard({ hotel }) {
         </span>
 
         <button
-          onClick={() => toggleFavorite(hotel.id)}
+          onClick={handleFavoriteClick}
           className="absolute right-4 top-4 rounded-full bg-white/90 p-2 shadow transition hover:scale-110"
         >
           <Heart
             size={18}
             className={
-              isFavoriteFn(hotel.id)
-                ? "fill-red-500 text-red-500"
-                : "text-slate-600"
+              isFavorite ? "fill-red-500 text-red-500" : "text-slate-600"
             }
           />
         </button>
@@ -45,7 +107,9 @@ export default function HotelCard({ hotel }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-[#2f6fb3]">{hotel.branch}</p>
-            <h3 className="text-xl font-bold text-[#223a5e]">{hotel.roomName}</h3>
+            <h3 className="text-xl font-bold text-[#223a5e]">
+              {hotel.roomName}
+            </h3>
           </div>
 
           <div className="flex items-center gap-1 font-semibold text-amber-500">
@@ -60,7 +124,7 @@ export default function HotelCard({ hotel }) {
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {hotel.amenities.map((item, index) => (
+          {(hotel.amenities || []).map((item, index) => (
             <span
               key={index}
               className="rounded-full bg-[#eff5fc] px-3 py-1 text-xs text-[#2f6fb3]"
@@ -89,7 +153,10 @@ export default function HotelCard({ hotel }) {
           <div>
             <p className="text-2xl font-bold text-[#223a5e]">
               ${hotel.price}
-              <span className="text-sm font-normal text-slate-500"> / night</span>
+              <span className="text-sm font-normal text-slate-500">
+                {" "}
+                / night
+              </span>
             </p>
           </div>
 

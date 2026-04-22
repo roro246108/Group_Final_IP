@@ -19,6 +19,7 @@ const buildUserResponse = (user) => ({
   email: user.email,
   phone: user.phone,
   role: user.role,
+  status: user.status,
 });
 
 export const register = async (req, res) => {
@@ -45,6 +46,7 @@ export const register = async (req, res) => {
       phone,
       password: hashedPassword,
       role: email.toLowerCase() === "admin@hotel.com" ? "admin" : "user",
+      ipAddress: req.ip,
     });
 
     const token = generateToken(user);
@@ -62,7 +64,6 @@ export const register = async (req, res) => {
   }
 };
 
-// LOGIN
 export const login = async (req, res) => {
   const errors = validationResult(req);
 
@@ -78,20 +79,13 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const storedPasswordHash = user.password || user.passwordHash;
-    if (!storedPasswordHash) {
-      return res.status(500).json({
-        message: "Server error",
-        error: "Stored user password hash is missing",
-      });
-    }
-
-    const isMatch = await bcrypt.compare(password, storedPasswordHash);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     user.lastLoginAt = new Date();
+    user.ipAddress = req.ip;
     await user.save();
 
     const token = generateToken(user);
@@ -109,24 +103,17 @@ export const login = async (req, res) => {
   }
 };
 
-// GET CURRENT USER
 export const getMe = async (req, res) => {
   try {
-    console.log("getMe - req.user:", req.user);
-    console.log("getMe - looking for user ID:", req.user.userId);
-    
     const user = await User.findById(req.user.userId).select("-password");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({
+    res.status(200).json({
       user: buildUserResponse(user),
     });
-    console.log("getMe - found user:", user);
-
-    res.json(user);
   } catch (error) {
     res.status(500).json({
       message: "Server error",
@@ -140,14 +127,14 @@ export const logout = async (req, res) => {
     message: "Logout successful",
   });
 };
-// GET ALL USERS
+
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select("-password");
 
     res.status(200).json({
       count: users.length,
-      users,
+      users: users.map(buildUserResponse),
     });
   } catch (error) {
     res.status(500).json({

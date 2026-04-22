@@ -1,5 +1,19 @@
-// models/User.js
 import mongoose from "mongoose";
+
+const favoriteSchema = new mongoose.Schema(
+  {
+    hotelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Hotel",
+      required: true,
+    },
+    roomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+  },
+  { _id: false }
+);
 
 const userSchema = new mongoose.Schema(
   {
@@ -43,12 +57,10 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
-    status: {
-      type: String,
-      default: "active",
+    favorites: {
+      type: [favoriteSchema],
+      default: [],
     },
-    ipAddress: String,
-    lastLoginAt: Date,
   },
   { timestamps: true }
 );
