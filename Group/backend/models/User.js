@@ -1,5 +1,20 @@
 import mongoose from "mongoose";
 
+const favoriteSchema = new mongoose.Schema(
+  {
+    hotelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Hotel",
+      required: true,
+    },
+    roomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     firstName: {
@@ -43,16 +58,10 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin", "staff", "customer"], 
       default: "user",
     },
-    // UPDATED: Added enum to prevent accidental values like "deleted"
-    status: {
-      type: String,
-      enum: ["active", "blocked"],
-      default: "active",
+    favorites: {
+      type: [favoriteSchema],
+      default: [],
     },
-    address: String, // Added this since your React table shows addresses
-    avatar: String,  // Added this for the profile pictures in your table
-    ipAddress: String,
-    lastLoginAt: Date,
   },
   { timestamps: true }
 );

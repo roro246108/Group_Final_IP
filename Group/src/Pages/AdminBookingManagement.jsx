@@ -16,14 +16,48 @@
 
     const [showForm, setShowForm] = useState(false);
     const [newName, setNewName] = useState("");
+    const [newEmail, setNewEmail] = useState("");
+    const [newPhone, setNewPhone] = useState("");
+    const [newRoomName, setNewRoomName] = useState("");
     const [newStatus, setNewStatus] = useState("Pending");
 
-    const { bookings, approveBooking, cancelBooking, addBooking ,updateStatus} = useBookings();
+    const { bookings, loading, error, approveBooking, cancelBooking, addBooking, deleteBooking } = useBookings();
 
     const total = bookings.length;
     const confirmed = bookings.filter(b => b.status === "Confirmed").length;
     const cancelled = bookings.filter(b => b.status === "Cancelled").length;
     const pending = bookings.filter(b => b.status === "Pending").length;
+
+    const handleApproveBooking = async (id) => {
+      try {
+        await approveBooking(id);
+        setSelectedBooking(prev =>
+          prev?.id === id ? { ...prev, status: "Confirmed" } : prev
+        );
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    const handleCancelBooking = async (id) => {
+      try {
+        await cancelBooking(id);
+        setSelectedBooking(prev =>
+          prev?.id === id ? { ...prev, status: "Cancelled" } : prev
+        );
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    const handleDeleteBooking = async (id) => {
+      try {
+        await deleteBooking(id);
+        setSelectedBooking(prev => (prev?.id === id ? null : prev));
+      } catch (err) {
+        alert(err.message);
+      }
+    };
 
     const filteredBookings =
       filterStatus === "All"
@@ -92,13 +126,37 @@
 
             {/* Add Booking Form */}
             {showForm && (
-              <div className={`p-4 rounded-xl shadow mb-6 flex gap-3 items-center ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+              <div className={`p-4 rounded-xl shadow mb-6 grid grid-cols-1 md:grid-cols-5 gap-3 items-center ${darkMode ? "bg-gray-800" : "bg-white"}`}>
 
                 <input
                   type="text"
                   placeholder="Customer Name"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
+                  className={`border px-3 py-2 rounded-lg ${darkMode ? "bg-gray-700 border-gray-600 text-white" : ""}`}
+                />
+
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className={`border px-3 py-2 rounded-lg ${darkMode ? "bg-gray-700 border-gray-600 text-white" : ""}`}
+                />
+
+                <input
+                  type="text"
+                  placeholder="Phone"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                  className={`border px-3 py-2 rounded-lg ${darkMode ? "bg-gray-700 border-gray-600 text-white" : ""}`}
+                />
+
+                <input
+                  type="text"
+                  placeholder="Room Name"
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
                   className={`border px-3 py-2 rounded-lg ${darkMode ? "bg-gray-700 border-gray-600 text-white" : ""}`}
                 />
 
@@ -113,12 +171,26 @@
                 </select>
 
                 <button
-                  onClick={() => {
-                    addBooking(newName, newStatus);
-                    setNewName("");
-                    setShowForm(false);
+                  onClick={async () => {
+                    try {
+                      await addBooking({
+                        name: newName,
+                        email: newEmail,
+                        phone: newPhone,
+                        roomName: newRoomName,
+                        status: newStatus,
+                      });
+                      setNewName("");
+                      setNewEmail("");
+                      setNewPhone("");
+                      setNewRoomName("");
+                      setNewStatus("Pending");
+                      setShowForm(false);
+                    } catch (err) {
+                      alert(err.message);
+                    }
                   }}
-                  className="bg-[#C8D9E6] text-[#2F4156] px-4 py-2 rounded-lg"
+                  className="bg-[#C8D9E6] text-[#2F4156] px-4 py-2 rounded-lg md:col-start-5"
                 >
                   Save
                 </button>
@@ -130,6 +202,24 @@
             <div className="grid grid-cols-4 gap-6">
 
               <div className="col-span-3 grid grid-cols-3 gap-4 items-start">
+                {loading && (
+                  <p className={darkMode ? "text-gray-300" : "text-gray-600"}>
+                    Loading bookings...
+                  </p>
+                )}
+
+                {error && (
+                  <p className="text-red-500">
+                    {error}
+                  </p>
+                )}
+
+                {!loading && !error && filteredBookings.length === 0 && (
+                  <p className={darkMode ? "text-gray-300" : "text-gray-600"}>
+                    No bookings found.
+                  </p>
+                )}
+
                 {filteredBookings.map(b => (
                   <BookingCard
                     key={b.id}
@@ -141,8 +231,9 @@
              {/* Timeline */}
               <BookingTimeline
                 booking={selectedBooking}
-                onApprove={approveBooking}
-                onCancel={cancelBooking}
+                onApprove={handleApproveBooking}
+                onCancel={handleCancelBooking}
+                onDelete={handleDeleteBooking}
              />
 
             </div>

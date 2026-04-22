@@ -30,14 +30,14 @@ export default function BookingStats() {
 
       <div className="grid grid-cols-3 items-center gap-6">
 
-        {/* 🔵 Circle */}
+        {/*  Circle */}
         <div className="flex justify-center">
           <div className="w-28 h-28 border-[10px] border-blue-500 rounded-full flex items-center justify-center font-bold">
             {occupancy}%
           </div>
         </div>
 
-        {/* 🔵 Center */}
+        {/*  Center */}
         <div className="text-center">
           <h2 className="text-3xl font-bold">{occupancy}%</h2>
           <p className={darkMode ? "text-gray-400" : "text-gray-500"}>Occupancy Hotel</p>
@@ -50,7 +50,7 @@ export default function BookingStats() {
           </div>
         </div>
 
-        {/* 🔵 Right */}
+        {/*  Right */}
         <div className="space-y-3 text-sm">
           <div className="flex justify-between">
             <span>Available rooms</span>

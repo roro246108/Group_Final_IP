@@ -4,6 +4,7 @@ import RoomDetails from "../Components/RoomDetails";
 import BookingCard from "../Components/BookingCard";
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
+import axios from "axios";
 
 import { calculateNights, calculateTotal } from "../hooks/useBookingpayment";
 
@@ -16,13 +17,14 @@ export default function RoomBooking() {
   const [checkOut, setCheckOut] = useState("");
   const [nights, setNights] = useState(0);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   
   if (!room) {
     return <p className="text-center mt-40 text-xl">No room selected </p>;
   }
 
-  const handleCheckAvailability = () => {
+  const handleCheckAvailability = async () => {
 
     if (!checkIn || !checkOut) {
       alert("Please select both dates.");
@@ -36,12 +38,28 @@ export default function RoomBooking() {
       return;
     }
 
-    const calculatedTotal = calculateTotal(calculatedNights, room.price);
+    setLoading(true);
+    try {
+      // Call backend API to verify availability
+      const response = await axios.post("/api/bookings/search", {
+        branch: room.branch || room.city,
+        roomName: room.roomName,
+        checkIn: new Date(checkIn),
+        checkOut: new Date(checkOut),
+        guests: room.guests || 1,
+      });
 
-    setNights(calculatedNights);
-    setTotal(calculatedTotal);
-
-    alert(`Room is available for ${calculatedNights} nights`);
+      if (response.data.available) {
+        const calculatedTotal = calculateTotal(calculatedNights, room.price);
+        setNights(calculatedNights);
+        setTotal(calculatedTotal);
+        alert(`Room is available for ${calculatedNights} nights`);
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || "Error checking availability. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -63,6 +81,7 @@ export default function RoomBooking() {
               setCheckIn={setCheckIn}
               setCheckOut={setCheckOut}
               onCheckAvailability={handleCheckAvailability}
+              isLoading={loading}
             />
 
           </div>

@@ -19,7 +19,9 @@ const API_BASE = resolveApiBase();
 function buildHeaders(extraHeaders = {}) {
   const actor = getCurrentAdminIdentity();
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    typeof window !== "undefined"
+      ? localStorage.getItem("token") || sessionStorage.getItem("token")
+      : null;
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

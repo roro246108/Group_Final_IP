@@ -1,4 +1,10 @@
-export default function FilterSidebar({ filters, setFilters, resetFilters }) {
+export default function FilterSidebar({
+  filters,
+  setFilters,
+  resetFilters,
+  branchOptions = [],
+  typeOptions = [],
+}) {
   return (
     <aside className="h-fit rounded-3xl bg-[#e6eef7] p-6 shadow-md">
       <div>
@@ -16,10 +22,14 @@ export default function FilterSidebar({ filters, setFilters, resetFilters }) {
             className="w-full rounded-2xl border border-[#dbe4f0] bg-[#CBD9E6] px-4 py-4 text-[#223a5e] outline-none"
           >
             <option value="">All Types</option>
-            <option value="Standard">Standard</option>
-            <option value="Deluxe">Deluxe</option>
-            <option value="Suite">Suite</option>
-            <option value="Penthouse">Penthouse</option>
+            {(typeOptions.length > 0
+              ? typeOptions
+              : ["Standard", "Deluxe", "Suite", "Penthouse"]
+            ).map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -33,11 +43,20 @@ export default function FilterSidebar({ filters, setFilters, resetFilters }) {
             className="w-full rounded-2xl border border-[#dbe4f0] bg-[#CBD9E6] px-4 py-4 text-[#223a5e] outline-none"
           >
             <option value="">All Branches</option>
-            <option value="Alexandria Branch">Alexandria Branch</option>
-            <option value="Marsa Alam Branch">Marsa Alam Branch</option>
-            <option value="Cairo Branch">Cairo Branch</option>
-            <option value="Sharm El Sheikh Branch">Sharm El Sheikh Branch</option>
-            <option value="Ain El Sokhna Branch">Ain El Sokhna Branch</option>
+            {(branchOptions.length > 0
+              ? branchOptions
+              : [
+                  "Alexandria Branch",
+                  "Marsa Alam Branch",
+                  "Cairo Branch",
+                  "Sharm El Sheikh Branch",
+                  "Ain El Sokhna Branch",
+                ]
+            ).map((branch) => (
+              <option key={branch} value={branch}>
+                {branch}
+              </option>
+            ))}
           </select>
         </div>
 

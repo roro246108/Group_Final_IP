@@ -1,34 +1,10 @@
 import { Link } from "react-router-dom";
-import suiteAlex from "../assets/Images/Suite.jpg";
-import suiteCairo from "../assets/Images/Suite3.jpg";
-import penthouseSharm from "../assets/Images/Penthouse4.jpg";
+import suiteAlex from "/Images/Suite.jpg";
+import suiteCairo from "/Images/Suite3.jpg";
+import penthouseSharm from "/Images/Penthouse4.jpg";
+import hotels from "../data/hotels";
 
-const rooms = [
-  {
-    id: 1,
-    name: "Ocean View Suite",
-    price: "$320/night",
-    description:
-      "Panoramic sea views, elegant interiors, and premium comfort for an unforgettable Alexandria stay.",
-    image: suiteAlex,
-  },
-  {
-    id: 2,
-    name: "Business Suite",
-    price: "$295/night",
-    description:
-      "A refined suite in Cairo designed for stylish city stays, added comfort, and business convenience.",
-    image: suiteCairo,
-  },
-  {
-    id: 3,
-    name: "Paradise Penthouse",
-    price: "$690/night",
-    description:
-      "An exceptional luxury stay in Sharm El Sheikh with private pool comfort, ocean views, and elegant privacy.",
-    image: penthouseSharm,
-  },
-];
+const featuredRooms = hotels.filter((r) => r.featured).slice(0, 3);
 
 export default function RoomTypesPreview() {
   return (
@@ -50,7 +26,7 @@ export default function RoomTypesPreview() {
         </div>
 
         <div className="mt-14 grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
-          {rooms.map((room) => (
+          {featuredRooms.map((room) => (
             <div
               key={room.id}
               className="group overflow-hidden rounded-3xl bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl"
@@ -58,23 +34,29 @@ export default function RoomTypesPreview() {
               <div className="relative h-64 overflow-hidden">
                 <img
                   src={room.image}
-                  alt={room.name}
+                  alt={room.roomName}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
 
                 <div className="absolute bottom-4 right-4 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#2F4156] shadow-md">
-                  {room.price}
+                  ${room.price}/night
                 </div>
               </div>
 
               <div className="p-6">
                 <h3 className="text-2xl font-semibold text-[#2F4156]">
-                  {room.name}
+                  {room.roomName}
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-[#5c6b7a] md:text-base">
-                  {room.description}
+                  {room.branch} · {room.guests} guests · {room.beds} bed{room.beds > 1 ? "s" : ""} · {room.size} sq ft
                 </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {room.amenities.slice(0, 3).map((a) => (
+                    <span key={a} className="rounded-full bg-[#f0f4f8] px-3 py-1 text-xs text-[#5c6b7a]">{a}</span>
+                  ))}
+                </div>
               </div>
             </div>
           ))}

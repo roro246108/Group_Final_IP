@@ -9,6 +9,7 @@ import {
   MapPin,
 } from "lucide-react";
 import useAdminThemeMode from "../hooks/useAdminThemeMode";
+import { getSafeRoomImage } from "../utils/roomMedia";
 
 function RoomCard({ room, t, onToggleStatus, onManageDates, onEditRoom, onDeleteRoom }) {
   const { darkMode } = useAdminThemeMode();
@@ -51,7 +52,10 @@ function RoomCard({ room, t, onToggleStatus, onManageDates, onEditRoom, onDelete
     <div className={`rounded-2xl shadow-sm border overflow-hidden hover:shadow-md transition-all duration-300 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
       <div className="relative h-48 overflow-hidden">
         <img
-          src={room.image}
+          src={getSafeRoomImage(room)}
+          onError={(e) => {
+            e.currentTarget.src = getSafeRoomImage({ type: room.type });
+          }}
           alt={room.name}
           className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
         />
