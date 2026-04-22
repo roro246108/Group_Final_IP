@@ -1,4 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Layout from "./Components/Layout/Layout";
 import ProtectedRoute from "./RoutesFront/ProtectedRoute";
 import AdminRoute from "./RoutesFront/AdminRoute";
@@ -32,6 +34,16 @@ import RegisterPage from "./Pages/RegisterPage";
 import LoginPage from "./Pages/LoginPage";
 import { UserProvider } from "./Context/UserContext";
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
+
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -39,6 +51,7 @@ function App() {
         <FavoritesProvider>
           <OffersProvider>
             <BrowserRouter>
+              <ScrollToTop />
               <Routes>
               {/* Public */}
               <Route path="/" element={<HomePage />} />

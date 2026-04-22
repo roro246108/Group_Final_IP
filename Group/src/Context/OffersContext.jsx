@@ -1,94 +1,113 @@
-// This file creates a shared state for offers
-// Both AdminOffersPage and OffersPage read from here
-// When admin deletes an offer, it disappears from the user page too
-// Uses localStorage so changes survive page refreshes and tab switches
+// OffersContext — connects to the real backend API
+// GET /offers      → public, fetches all offers from MongoDB
+// POST/DELETE/PATCH → admin only, requires JWT token
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { initialOffers } from "../data/adminData";
 import { offersData } from "../data/offersData";
+import hotels from "../data/hotels";
+import * as offersService from "../services/offersService";
 
-// 1. Create the context
 const OffersContext = createContext();
 
-// This function maps adminData fields → offersData fields so OfferCard works correctly
+// Maps backend offer (admin format) → user format for OfferCard
 const mapToUserFormat = (adminOffer) => {
-  const match = offersData.find((o) => o.id === adminOffer.id);
+  const match = offersData.find((o) => o.id === adminOffer.hotelId || o.title === adminOffer.title);
+  const hotelRoom = adminOffer.hotelId ? hotels.find((h) => h.id === adminOffer.hotelId) : null;
 
   return {
     ...adminOffer,
     discountedPrice: adminOffer.pricePerNight,
     discountPercent: adminOffer.discount,
-    expiresAt: match?.expiresAt || new Date(adminOffer.expiryDate).toISOString(),
-    category: adminOffer.type,
-    tag: match?.tag || adminOffer.badge,
-    tagColor: match?.tagColor || "bg-blue-500 text-white",
-    image: match?.image || "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80",
-    features: match?.features || [],
-    description: match?.description || "",
-    badge: match?.badge || adminOffer.badge,
+    originalPrice:   adminOffer.originalPrice,
+    expiresAt:       match?.expiresAt || new Date(adminOffer.expiryDate).toISOString(),
+    category:        adminOffer.type,
+    tag:             match?.tag   || adminOffer.badge,
+    tagColor:        match?.tagColor || "bg-blue-500 text-white",
+    image:           hotelRoom?.image || match?.image || "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80",
+    features:        match?.features  || [],
+    description:     adminOffer.description || match?.description || "",
+    badge:           match?.badge || adminOffer.badge,
+    roomName:        hotelRoom?.roomName,
+    branch:          hotelRoom?.branch,
+    guests:          hotelRoom?.guests,
+    beds:            hotelRoom?.beds,
+    baths:           hotelRoom?.baths,
+    size:            hotelRoom?.size,
+    rating:          hotelRoom?.rating,
+    amenities:       hotelRoom?.amenities || [],
   };
 };
 
-// 2. Create the provider
 export function OffersProvider({ children }) {
+  const [offers, setOffers]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
 
-  // Load from localStorage if exists, otherwise use initialOffers from adminData.js
-  const [offers, setOffers] = useState(() => {
-    try {
-      const saved = localStorage.getItem("hotelOffers");
-      return saved ? JSON.parse(saved) : initialOffers;
-    } catch {
-      return initialOffers;
-    }
-  });
-
-  // Every time offers changes, save to localStorage automatically
+  // Fetch all offers from MongoDB on mount
   useEffect(() => {
+    const loadOffers = async () => {
+      try {
+        setLoading(true);
+        const data = await offersService.fetchOffers();
+        setOffers(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadOffers();
+  }, []);
+
+  // ADD a new offer → POST to backend
+  const addOffer = async (newOffer) => {
     try {
-      localStorage.setItem("hotelOffers", JSON.stringify(offers));
-    } catch {
-      console.error("Could not save offers to localStorage");
-    }
-  }, [offers]);
+      // Convert strings from form inputs to numbers
+      const discount      = Number(newOffer.discount);
+      const originalPrice = Number(newOffer.originalPrice);
+      const pricePerNight = Math.round(originalPrice * (1 - discount / 100));
 
-  // ADD a new offer
-  const addOffer = (newOffer) => {
-    setOffers((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        active: true,
-        pricePerNight: Math.round(newOffer.originalPrice * (1 - newOffer.discount / 100)),
+      const created = await offersService.createOffer({
         ...newOffer,
-      },
-    ]);
+        discount,
+        originalPrice,
+        pricePerNight,
+      });
+      setOffers((prev) => [...prev, created]);
+    } catch (err) {
+      console.error("Failed to create offer:", err.message);
+    }
   };
 
-  // DELETE an offer by id
-  const deleteOffer = (id) => {
-    setOffers((prev) => prev.filter((offer) => offer.id !== id));
+  // DELETE an offer → DELETE to backend
+  const deleteOffer = async (id) => {
+    try {
+      await offersService.deleteOffer(id);
+      setOffers((prev) => prev.filter((o) => String(o._id) !== String(id)));
+    } catch (err) {
+      console.error("Failed to delete offer:", err.message);
+    }
   };
 
-  // TOGGLE active/inactive
-  const toggleOffer = (id) => {
-    setOffers((prev) =>
-      prev.map((offer) =>
-        offer.id === id ? { ...offer, active: !offer.active } : offer
-      )
-    );
+  // TOGGLE active/inactive → PATCH to backend
+  const toggleOffer = async (id) => {
+    try {
+      const updated = await offersService.toggleOffer(id);
+      setOffers((prev) => prev.map((o) => (String(o._id) === String(id) ? updated : o)));
+    } catch (err) {
+      console.error("Failed to toggle offer:", err.message);
+    }
   };
 
-  // Map offers to user format so OfferCard displays correctly
   const mappedOffers = offers.map(mapToUserFormat);
 
   return (
-    <OffersContext.Provider value={{ offers, mappedOffers, addOffer, deleteOffer, toggleOffer }}>
+    <OffersContext.Provider value={{ offers, mappedOffers, loading, error, addOffer, deleteOffer, toggleOffer }}>
       {children}
     </OffersContext.Provider>
   );
 }
 
-// 3. Custom hook to use the context easily
 export function useOffers() {
   return useContext(OffersContext);
 }

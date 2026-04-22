@@ -34,13 +34,17 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
   
   const handleCardNumber = (e) => {
-    const value = e.target.value;
+    const value = e.target.value.replace(/\D/g, "").slice(0, 16);
     setCardNumber(value);
-    if (/[^0-9]/.test(value)) setError("Card number must contain numbers only.");
-    else setError("");
+    if (value.length > 0 && value.length < 16) {
+      setError("Card number must be exactly 16 digits.");
+    } else {
+      setError("");
+    }
   };
 
   const handleName = (e) => {
@@ -50,6 +54,17 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
     else setError("");
   };
 
+  const handlePhone = (e) => {
+    const rawValue = e.target.value;
+    const value = rawValue.replace(/\D/g, "").slice(0, 11);
+    setPhone(value);
+    if (rawValue.replace(/\D/g, "").length > 11) {
+      setPhoneError("Phone number must not exceed 11 digits.");
+    } else {
+      setPhoneError("");
+    }
+  };
+
   const handleExpiry = (e) => {
     let value = e.target.value.replace(/\D/g, "");
     if (value.length >= 3) value = value.slice(0, 2) + "/" + value.slice(2, 4);
@@ -57,10 +72,11 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
   };
 
   const handleCVV = (e) => {
-    const value = e.target.value;
+    const rawValue = e.target.value;
+    const value = rawValue.replace(/\D/g, "").slice(0, 3);
     setCvv(value);
-    if (/[^0-9]/.test(value)) setError("CVV must contain numbers only.");
-    else if (value.length > 4) setError("CVV cannot exceed 4 digits.");
+    if (/[^0-9]/.test(rawValue)) setError("CVV must contain numbers only.");
+    else if (rawValue.length > 3) setError("CVV must be exactly 3 digits.");
     else setError("");
   };
 
@@ -68,6 +84,21 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
   const handlePayment = async () => {
   if (!cardNumber || !expiry || !cvv || !name || !email || !phone) {
     setError("Please fill in all fields first.");
+    return;
+  }
+
+  if (cardNumber.length !== 16) {
+    setError("Card number must be exactly 16 digits.");
+    return;
+  }
+
+  if (phone.length !== 11) {
+    setError("Phone number must be exactly 11 digits.");
+    return;
+  }
+
+  if (cvv.length !== 3) {
+    setError("CVV must be exactly 3 digits.");
     return;
   }
 
@@ -154,9 +185,16 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
             type="text"
             placeholder="Phone Number"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full border p-3 rounded-lg mb-6"
+            onChange={handlePhone}
+            inputMode="numeric"
+            pattern="[0-9]{11}"
+            className={`w-full border p-3 rounded-lg ${phoneError ? "mb-2" : "mb-6"}`}
           />
+          {phoneError && (
+            <p className="text-red-500 text-sm mb-6">
+              {phoneError}
+            </p>
+          )}
 
           <h3 className="font-semibold mb-3 text-lg">
             Card Details
@@ -169,6 +207,9 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
             placeholder="Card Number"
             value={cardNumber}
             onChange={handleCardNumber}
+            inputMode="numeric"
+            maxLength="16"
+            pattern="[0-9]{16}"
             className="w-full border p-3 rounded-lg mb-4"
           />
 
@@ -186,6 +227,9 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
               placeholder="CVV"
               value={cvv}
               onChange={handleCVV}
+              inputMode="numeric"
+              maxLength="3"
+              pattern="[0-9]{3}"
               className="w-full border p-3 rounded-lg"
             />
           </div>

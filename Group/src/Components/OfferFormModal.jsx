@@ -1,4 +1,5 @@
 import { useState } from "react";
+import hotels from "../data/hotels";
 
 function OfferFormModal({ onClose, onSubmit }) {
   const [formData, setFormData] = useState({
@@ -8,6 +9,8 @@ function OfferFormModal({ onClose, onSubmit }) {
     discount: "",
     originalPrice: "",
     expiryDate: "",
+    hotelId: "",
+    description: "",
   });
 
   const [isActive, setIsActive] = useState(false);
@@ -58,15 +61,15 @@ function OfferFormModal({ onClose, onSubmit }) {
 
   return (
     <div className="fixed inset-0 bg-[#b8d2e7]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-[20px] p-10 w-full max-w-md shadow-2xl">
+      <div className="bg-white rounded-[20px] p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-4">
           <div className="text-[#1565a8] text-2xl font-bold">+</div>
           <h2 className="text-[#1565a8] text-xl font-bold">Add New Offer</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
 
           {/* Title */}
           <div>
@@ -81,6 +84,18 @@ function OfferFormModal({ onClose, onSubmit }) {
               }}
             />
             {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-[#1565a8] text-sm font-semibold mb-2">Description</label>
+            <textarea
+              rows={3}
+              placeholder="e.g. Book 2 nights and enjoy a complimentary breakfast with sea view..."
+              value={formData.description}
+              className="w-full bg-[#f5f9fc] border border-[#e2e8f0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1565a8]/20 placeholder:text-slate-300 resize-none"
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
           </div>
 
           {/* Type + Badge */}
@@ -111,6 +126,32 @@ function OfferFormModal({ onClose, onSubmit }) {
                 <option>Family</option>
               </select>
             </div>
+          </div>
+
+          {/* Hotel Room Selector */}
+          <div>
+            <label className="block text-[#1565a8] text-sm font-semibold mb-2">Hotel Room</label>
+            <select
+              className="w-full bg-[#f5f9fc] border border-[#e2e8f0] rounded-xl px-4 py-3 text-sm text-slate-500 focus:outline-none"
+              value={formData.hotelId}
+              onChange={(e) => {
+                const selectedRoom = hotels.find((h) => h.id === Number(e.target.value));
+                setFormData({
+                  ...formData,
+                  hotelId: Number(e.target.value),
+                  // Auto-fill title and price from hotel room
+                  title: selectedRoom ? selectedRoom.roomName : formData.title,
+                  originalPrice: selectedRoom ? selectedRoom.price : formData.originalPrice,
+                });
+              }}
+            >
+              <option value="">— Select a room —</option>
+              {hotels.map((room) => (
+                <option key={room.id} value={room.id}>
+                  {room.branch} · {room.roomName} (${room.price}/night)
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Discount + Price */}

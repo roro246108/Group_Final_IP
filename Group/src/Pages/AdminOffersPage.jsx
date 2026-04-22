@@ -98,7 +98,7 @@ function AdminOffersPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {offers.map((offer) => (
           <div
-            key={offer.id}
+            key={offer._id}
             className={`bg-white rounded-2xl overflow-hidden border border-[#dbeafe] transition-opacity ${
               !offer.active ? "opacity-70" : ""
             }`}
@@ -150,36 +150,18 @@ function AdminOffersPage() {
                 }`}>
                   {offer.active ? "● Active" : "● Inactive"}
                 </span>
-
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => toggleOffer(offer.id)}
-                    title={offer.active ? "Deactivate" : "Activate"}
-                    className={`px-2.5 py-1.5 rounded-lg text-sm transition-colors ${darkMode ? "bg-gray-700 hover:bg-gray-600 text-gray-200" : "bg-[#C8D9E6] hover:bg-[#567C8D] hover:text-white text-[#2F4156]"}`}
-                  >
-                    {offer.active ? "⏸" : "▶️"}
-                  </button>
-
-                  <button
-                    onClick={() => setDeleteId(offer.id)}
-                    title="Delete"
-                    className="bg-red-100 hover:bg-red-500 hover:text-white text-red-500 px-2.5 py-1.5 rounded-lg text-sm transition-colors"
-                  >
-                    🗑️
-                  </button>
-                </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex gap-2">
                 <button
-                  onClick={() => toggleOffer(offer.id)}
+                  onClick={() => toggleOffer(offer._id)}
                   className="flex-1 bg-[#dbeafe] hover:bg-[#bfdbfe] text-[#1565a8] text-xs font-semibold py-2 rounded-lg transition-colors"
                 >
                   {offer.active ? "⏸ Pause" : "▶ Activate"}
                 </button>
                 <button
-                  onClick={() => setDeleteId(offer.id)}
+                  onClick={() => setDeleteId(offer._id)}
                   className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
                 >
                   🗑

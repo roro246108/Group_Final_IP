@@ -125,7 +125,10 @@ export const searchAvailability = async (req, res) => {
 // GET ALL
 export const getBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find().sort({ createdAt: -1 });
+    const bookings = await Booking.find()
+      .populate("userId", "firstName email")
+      .sort({ createdAt: -1 });
+
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -135,7 +138,8 @@ export const getBookings = async (req, res) => {
 // GET ONE
 export const getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id)
+      .populate("userId", "firstName email");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -150,10 +154,14 @@ export const getBookingById = async (req, res) => {
 // UPDATE
 export const updateBooking = async (req, res) => {
   try {
-    const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const booking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true
+      }
+    ).populate("userId", "firstName email");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
