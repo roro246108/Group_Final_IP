@@ -1,7 +1,7 @@
 // controllers/bookingController.js
 import Booking from "../models/Booking.js";
 
-//  CREATE
+// CREATE
 export const createBooking = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
@@ -21,20 +21,24 @@ export const createBooking = async (req, res) => {
   }
 };
 
-//  GET ALL
+// GET ALL
 export const getBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find().sort({ createdAt: -1 });
+    const bookings = await Booking.find()
+      .populate("userId", "firstName email")
+      .sort({ createdAt: -1 });
+
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-//  GET ONE
+// GET ONE
 export const getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id)
+      .populate("userId", "firstName email");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -46,7 +50,7 @@ export const getBookingById = async (req, res) => {
   }
 };
 
-//  UPDATE
+// UPDATE
 export const updateBooking = async (req, res) => {
   try {
     const booking = await Booking.findByIdAndUpdate(
@@ -56,7 +60,7 @@ export const updateBooking = async (req, res) => {
         new: true,
         runValidators: true
       }
-    );
+    ).populate("userId", "firstName email");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
@@ -68,7 +72,7 @@ export const updateBooking = async (req, res) => {
   }
 };
 
-//  DELETE
+// DELETE
 export const deleteBooking = async (req, res) => {
   try {
     const booking = await Booking.findByIdAndDelete(req.params.id);

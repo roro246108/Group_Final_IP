@@ -1,25 +1,75 @@
-// models/Booking.js
 import mongoose from "mongoose";
-
 const bookingSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true },
-  phone: { type: String, required: true },
+  name: { 
+    type: String, 
+    required: true,
+    trim: true
+  },
 
-  roomName: String,
-  price: Number,
-  nights: Number,
-  total: Number,
-  
-  checkIn: Date,
-  checkOut: Date,
+  email: { 
+    type: String, 
+    required: true,
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, "Invalid email"]
+  },
 
-  userId: String,
+  phone: { 
+    type: String, 
+    required: true 
+  },
 
-  createdAt: {
-    type: Date,
-    default: Date.now
+  status: {
+    type: String,
+    enum: ["Pending", "Confirmed", "Cancelled"],
+    default: "Pending"
+  },
+
+  roomName: { 
+    type: String 
+  },
+
+  price: { 
+    type: Number,
+    required: true,
+    min: 0
+  },
+
+  nights: { 
+    type: Number,
+    required: true,
+    min: 1
+  },
+
+  total: { 
+    type: Number,
+    required: true,
+    min: 0
+  },
+
+  notes: String,
+
+  payment: {
+    type: [String],
+    default: ["Booking created"]
+  },
+
+  checkIn: { 
+    type: Date, 
+    required: true 
+  },
+
+  checkOut: { 
+    type: Date, 
+    required: true 
+  },
+
+ 
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
   }
-});
+
+}, { timestamps: true }); 
 
 export default mongoose.model("Booking", bookingSchema);

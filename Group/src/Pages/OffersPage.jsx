@@ -88,7 +88,7 @@ const OffersPage = () => {
   return (
     <div className="min-h-screen" style={{ background: "#ffffff" }}>
        <Navbar />
-      <div className="relative pt-24 pb-12 px-6 overflow-hidden">
+      <div className="relative pt-32 pb-12 px-6 overflow-hidden">
         <div className="max-w-7xl mx-auto text-center">
           <div
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold mb-5"
