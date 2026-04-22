@@ -13,6 +13,9 @@ export function getSafeRoomImage(room = {}) {
   const image = typeof room.image === "string" ? room.image.trim() : "";
 
   if (!image) return getRoomFallbackImage(room);
+  if (image.startsWith("/images/")) {
+    return `/Images/${image.slice("/images/".length)}`;
+  }
   if (
     image.startsWith("/") ||
     image.startsWith("http://") ||

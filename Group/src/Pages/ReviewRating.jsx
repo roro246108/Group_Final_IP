@@ -23,126 +23,11 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
-import { apiDelete, apiGet, apiPost } from "../services/apiClient";
-
-const INITIAL_REVIEWS = [
-  {
-    id: 1,
-    name: "Sarah Mitchell",
-    comment:
-      "Absolutely stunning property! The ocean-view suite exceeded every expectation. The staff anticipated our needs before we even asked. Breakfast on the terrace was a dream. Will definitely return for our anniversary.",
-    rating: 5,
-    date: "2026-03-10",
-    helpful: 24,
-    unhelpful: 1,
-    verified: true,
-    title: "A Dream Stay - Truly World-Class",
-    branch: "Beachfront Resort",
-  },
-  {
-    id: 2,
-    name: "James Carter",
-    comment:
-      "Great location and beautiful rooms. The spa was fantastic and the concierge service helped us plan wonderful day trips. Only minor issue was slow Wi-Fi in the lobby, but the room connection was solid.",
-    rating: 4,
-    date: "2026-03-05",
-    helpful: 18,
-    unhelpful: 2,
-    verified: true,
-    title: "Excellent Experience Overall",
-    branch: "Downtown City Center",
-  },
-  {
-    id: 3,
-    name: "Amira Hassan",
-    comment:
-      "The rooftop pool is absolutely gorgeous at sunset. Room service was prompt and the food quality rivaled top restaurants in the city. The king suite was spacious and impeccably clean.",
-    rating: 5,
-    date: "2026-02-28",
-    helpful: 31,
-    unhelpful: 0,
-    verified: true,
-    title: "Rooftop Pool is a Must-See",
-    branch: "Beachfront Resort",
-  },
-  {
-    id: 4,
-    name: "David Park",
-    comment:
-      "Nice hotel with good amenities. The check-in process was a bit slow during peak hours and the parking situation could be better. However, the room itself was lovely and the bed was incredibly comfortable.",
-    rating: 3,
-    date: "2026-02-20",
-    helpful: 9,
-    unhelpful: 3,
-    verified: false,
-    title: "Good but Room for Improvement",
-    branch: "Airport Business Hub",
-  },
-  {
-    id: 5,
-    name: "Elena Rossi",
-    comment:
-      "We hosted our wedding reception here and the events team was phenomenal. Every detail was handled with such care and professionalism. Our guests are still talking about how beautiful the venue was.",
-    rating: 5,
-    date: "2026-02-14",
-    helpful: 42,
-    unhelpful: 0,
-    verified: true,
-    title: "Perfect Wedding Venue",
-    branch: "Lakeside Retreat",
-  },
-  {
-    id: 6,
-    name: "Marcus Thompson",
-    comment:
-      "Stayed for a business trip. The executive lounge was well-equipped and quiet - perfect for getting work done. Room was clean and modern. The fitness center is top-notch with Peloton bikes.",
-    rating: 4,
-    date: "2026-02-08",
-    helpful: 14,
-    unhelpful: 1,
-    verified: true,
-    title: "Ideal for Business Travelers",
-    branch: "Airport Business Hub",
-  },
-  {
-    id: 7,
-    name: "Priya Sharma",
-    comment:
-      "Average experience. The room was smaller than what was shown on the website. Housekeeping was good though, and the restaurant had a decent selection of vegetarian options which I appreciated.",
-    rating: 3,
-    date: "2026-01-30",
-    helpful: 7,
-    unhelpful: 4,
-    verified: false,
-    title: "Decent but Misleading Photos",
-    branch: "Mountain Lodge",
-  },
-  {
-    id: 8,
-    name: "Oliver Bennett",
-    comment:
-      "Second time staying at LuxeStay and it keeps getting better. The renovated lobby is gorgeous, the new cocktail bar is a great addition, and the staff remembered us from our last visit. That personal touch means everything.",
-    rating: 5,
-    date: "2026-01-22",
-    helpful: 27,
-    unhelpful: 0,
-    verified: true,
-    title: "Even Better the Second Time",
-    branch: "Downtown City Center",
-  },
-];
+import { apiDelete, apiGet, apiPatch, apiPost } from "../services/apiClient";
 
 const RATING_LABELS = ["", "Poor", "Fair", "Good", "Very Good", "Excellent"];
 const REVIEWS_PER_PAGE = 4;
 const MAX_COMMENT_LENGTH = 500;
-const BRANCHES = [
-  "Downtown City Center",
-  "Beachfront Resort",
-  "Mountain Lodge",
-  "Airport Business Hub",
-  "Lakeside Retreat",
-];
-
 function normalizeReview(review) {
   return {
     id: review._id ?? review.id,
@@ -191,7 +76,8 @@ function Toast({ message, type, onClose }) {
 }
 
 export default function ReviewRating() {
-  const [reviews, setReviews] = useState(INITIAL_REVIEWS);
+  const [reviews, setReviews] = useState([]);
+  const [branchOptions, setBranchOptions] = useState([]);
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [branch, setBranch] = useState("");
@@ -207,6 +93,7 @@ export default function ReviewRating() {
   const [editRating, setEditRating] = useState(0);
   const [toast, setToast] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [loadingReviews, setLoadingReviews] = useState(true);
   const formRef = useRef(null);
 
   const showToast = useCallback((message, type = "success") => {
@@ -216,22 +103,41 @@ export default function ReviewRating() {
   useEffect(() => {
     let isMounted = true;
 
-    const loadReviews = async () => {
+    const loadReviewData = async () => {
       try {
-        const data = await apiGet("/reviews");
+        const [reviewData, hotelData] = await Promise.all([
+          apiGet("/reviews"),
+          apiGet("/hotels").catch(() => ({ hotels: [] })),
+        ]);
         if (!isMounted) return;
 
-        if (Array.isArray(data) && data.length > 0) {
-          setReviews(data.map(normalizeReview));
-        }
-      } catch {
+        const normalizedReviews = Array.isArray(reviewData)
+          ? reviewData.map(normalizeReview)
+          : [];
+
+        const hotelBranches = Array.isArray(hotelData?.hotels)
+          ? hotelData.hotels
+              .filter((hotel) => hotel?.status !== "Inactive")
+              .map((hotel) => hotel?.name?.trim())
+              .filter(Boolean)
+          : [];
+
+        setReviews(normalizedReviews);
+        setBranchOptions([...new Set(hotelBranches)]);
+      } catch (error) {
         if (isMounted) {
-          showToast("Showing sample reviews while the server is unavailable.", "info");
+          setReviews([]);
+          setBranchOptions([]);
+          showToast(error.message || "Unable to load reviews right now.", "error");
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingReviews(false);
         }
       }
     };
 
-    loadReviews();
+    loadReviewData();
     return () => {
       isMounted = false;
     };
@@ -349,16 +255,29 @@ export default function ReviewRating() {
     setEditRating(review.rating);
   }
 
-  function saveEdit(id) {
+  async function saveEdit(review) {
     if (!editComment.trim()) return;
 
-    setReviews((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, comment: editComment.trim(), rating: editRating } : r
-      )
-    );
-    setEditingId(null);
-    showToast("Review updated.");
+    try {
+      if (!review._id) {
+        throw new Error("This review cannot be updated.");
+      }
+
+      const updatedReview = await apiPatch(`/reviews/${review._id}`, {
+        comment: editComment.trim(),
+        rating: editRating,
+      });
+
+      setReviews((prev) =>
+        prev.map((item) =>
+          item.id === review.id ? normalizeReview(updatedReview) : item
+        )
+      );
+      setEditingId(null);
+      showToast("Review updated.");
+    } catch (error) {
+      showToast(error.message || "Unable to update review.", "error");
+    }
   }
 
   function vote(id, type) {
@@ -645,7 +564,7 @@ export default function ReviewRating() {
                   className="w-full border border-sky-200 rounded-xl px-4 py-3 text-blue-900 bg-sky-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-shadow"
                 >
                   <option value="">Select a branch...</option>
-                  {BRANCHES.map((item) => (
+                  {branchOptions.map((item) => (
                     <option key={item} value={item}>
                       {item}
                     </option>
@@ -786,7 +705,12 @@ export default function ReviewRating() {
         </p>
 
         <div className="space-y-5">
-          {processedReviews.length === 0 ? (
+          {loadingReviews ? (
+            <div className="bg-white rounded-2xl shadow-md border border-sky-100 p-12 text-center">
+              <MessageSquare size={48} className="text-sky-300 mx-auto mb-4" />
+              <p className="text-sky-500 text-lg font-medium">Loading reviews...</p>
+            </div>
+          ) : processedReviews.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-md border border-sky-100 p-12 text-center">
               <MessageSquare size={48} className="text-sky-300 mx-auto mb-4" />
               <p className="text-sky-500 text-lg font-medium">No reviews found</p>
@@ -845,7 +769,7 @@ export default function ReviewRating() {
                       {isEditing ? (
                         <>
                           <button
-                            onClick={() => saveEdit(review.id)}
+                            onClick={() => saveEdit(review)}
                             className="p-1.5 rounded-lg text-teal-600 hover:bg-teal-50 transition-colors"
                             aria-label="Save"
                           >
@@ -958,7 +882,7 @@ export default function ReviewRating() {
 
         <p className="text-center text-xs text-sky-500 mt-10">
           All reviews are from real guests. Verified badges indicate confirmed
-          bookings through LuxeStay.
+          bookings through Blue waves.
         </p>
       </div>
       <Footer />

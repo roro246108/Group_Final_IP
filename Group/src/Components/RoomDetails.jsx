@@ -1,15 +1,18 @@
+import { getSafeRoomImage } from "../utils/roomMedia";
+
 export default function RoomDetails({ room }) {
   return (
-    <div className="bg-[#edf7ff] rounded-xl p-6 shadow w-full">
-
-      <div className="w-full aspect-[4/3] overflow-hidden rounded-xl">
+    <div className="w-full rounded-xl bg-[#edf7ff] p-6 shadow">
+      <div className="w-full overflow-hidden rounded-xl aspect-[4/3]">
         <img
-          src={room.image}   
-          alt="room"
-          className="w-full h-full object-cover"
+          src={getSafeRoomImage(room)}
+          alt={room.roomName || "room"}
+          onError={(e) => {
+            e.currentTarget.src = getSafeRoomImage({ type: room?.type });
+          }}
+          className="h-full w-full object-cover"
         />
       </div>
-
     </div>
   );
 }

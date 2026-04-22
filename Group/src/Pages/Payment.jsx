@@ -115,7 +115,7 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
 
     console.log("Using token:", token.substring(0, 20) + "...");
 
-    const booking = await createBooking({
+    await createBooking({
       name,
       email,
       phone,
@@ -130,7 +130,7 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
     }, token);
 
     setError("");
-    alert(`Booking successful! Reference: ${booking._id || "saved"}.`);
+    alert("Payment Successful");
 
   } catch (err) {
     const message = err?.message || "Payment failed. Please try again.";

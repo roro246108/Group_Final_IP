@@ -2,30 +2,89 @@ import Navbar from "../Components/Navbar";
 import PaymentForm from "../Components/PaymentForm";
 import RoomDetails from "../Components/RoomDetails";
 import BookingCard from "../Components/BookingCard";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "axios";
 
 import { calculateNights, calculateTotal } from "../hooks/useBookingpayment";
+import { apiGet } from "../services/apiClient";
+import { normalizeRoomRecord } from "../utils/roomMedia";
+
+function mergeOfferIntoRoom(baseRoom = {}, sourceRoom = {}) {
+  const normalizedBase = normalizeRoomRecord(baseRoom);
+  const offerPrice = Number(sourceRoom?.discountedPrice || sourceRoom?.price);
+  const originalPrice = Number(sourceRoom?.originalPrice);
+
+  if (!offerPrice || !originalPrice || offerPrice >= originalPrice) {
+    return normalizedBase;
+  }
+
+  return {
+    ...normalizedBase,
+    price: offerPrice,
+    discountedPrice: offerPrice,
+    originalPrice,
+    discountPercent: Number(sourceRoom?.discountPercent) || 0,
+    offerBadge: sourceRoom?.offerBadge || "",
+    offerTitle: sourceRoom?.offerTitle || "",
+  };
+}
 
 export default function RoomBooking() {
-
   const location = useLocation();
-  const room = location.state?.room || location.state?.selectedRoom;
+  const roomFromNavigation = location.state?.room || location.state?.selectedRoom;
 
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [nights, setNights] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [roomLoading, setRoomLoading] = useState(false);
+  const [room, setRoom] = useState(
+    roomFromNavigation ? normalizeRoomRecord(roomFromNavigation) : null
+  );
 
-  
+  const roomId = useMemo(
+    () => roomFromNavigation?._id || roomFromNavigation?.id,
+    [roomFromNavigation]
+  );
+
+  useEffect(() => {
+    if (!roomFromNavigation) {
+      setRoom(null);
+      return;
+    }
+
+    setRoom(mergeOfferIntoRoom(roomFromNavigation, roomFromNavigation));
+  }, [roomFromNavigation]);
+
+  useEffect(() => {
+    const fetchRoomDetails = async () => {
+      if (!roomId) return;
+
+      try {
+        setRoomLoading(true);
+        const latestRoom = await apiGet(`/rooms/${roomId}`);
+        setRoom(mergeOfferIntoRoom(latestRoom, roomFromNavigation));
+      } catch (error) {
+        console.error("Failed to load room details:", error.message);
+      } finally {
+        setRoomLoading(false);
+      }
+    };
+
+    fetchRoomDetails();
+  }, [roomId, roomFromNavigation]);
+
+  if (!room && roomLoading) {
+    return <p className="mt-40 text-center text-xl">Loading room details...</p>;
+  }
+
   if (!room) {
-    return <p className="text-center mt-40 text-xl">No room selected </p>;
+    return <p className="mt-40 text-center text-xl">No room selected</p>;
   }
 
   const handleCheckAvailability = async () => {
-
     if (!checkIn || !checkOut) {
       alert("Please select both dates.");
       return;
@@ -40,7 +99,6 @@ export default function RoomBooking() {
 
     setLoading(true);
     try {
-      // Call backend API to verify availability
       const response = await axios.post("/api/bookings/search", {
         branch: room.branch || room.city,
         roomName: room.roomName,
@@ -56,7 +114,10 @@ export default function RoomBooking() {
         alert(`Room is available for ${calculatedNights} nights`);
       }
     } catch (error) {
-      alert(error.response?.data?.message || "Error checking availability. Please try again.");
+      alert(
+        error.response?.data?.message ||
+          "Error checking availability. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -66,14 +127,10 @@ export default function RoomBooking() {
     <>
       <Navbar />
 
-      <div className="pt-40 flex justify-center w-full">
-
-        <div className="grid grid-cols-2 gap-10 max-w-7xl w-full px-10">
-
-          {/* LEFT */}
+      <div className="flex w-full justify-center pt-40">
+        <div className="grid w-full max-w-7xl gap-10 px-10 lg:grid-cols-2">
           <div className="space-y-6">
-
-           <RoomDetails room={room} />
+            <RoomDetails room={room} />
 
             <BookingCard
               checkIn={checkIn}
@@ -83,58 +140,53 @@ export default function RoomBooking() {
               onCheckAvailability={handleCheckAvailability}
               isLoading={loading}
             />
-
           </div>
 
-          {/* RIGHT */}
           <div className="space-y-6">
-
             <div>
-
-              <div className="flex items-center gap-3 mt-2">
-                <span className="bg-[#1e3a8a] text-white text-sm px-3 py-1 rounded-full">
+              <div className="mt-2 flex items-center gap-3">
+                <span className="rounded-full bg-[#1e3a8a] px-3 py-1 text-sm text-white">
                   {room.type}
                 </span>
 
-                <span className="text-yellow-500">
-                  ⭐ {room.rating}
-                </span>
+                {room.discountPercent > 0 && (
+                  <span className="rounded-full bg-[#dbeafe] px-3 py-1 text-sm text-[#1e3a8a]">
+                    -{room.discountPercent}% offer
+                  </span>
+                )}
 
-                <span className="text-gray-500 text-sm">
+                <span className="text-yellow-500">* {room.rating}</span>
+
+                <span className="text-sm text-gray-500">
                   ({Math.floor(room.rating * 30)} reviews)
                 </span>
               </div>
 
-              <h2 className="text-3xl font-semibold">
-                {room.roomName}
-              </h2>
+              <h2 className="text-3xl font-semibold">{room.roomName}</h2>
 
-              <p className="text-gray-600 mt-3">
-                {room.type} room in {room.city} with capacity for {room.guests} guests.
+              <p className="mt-3 text-gray-600">
+                {room.description ||
+                  `${room.type} room in ${room.city} with capacity for ${room.guests} guests.`}
               </p>
 
-              {/* Amenities */}
-              <div className="grid grid-cols-2 gap-3 mt-6 text-gray-600">
-                {room.amenities.map((item, index) => (
-                  <p key={index}>✔ {item}</p>
+              <div className="mt-6 grid grid-cols-2 gap-3 text-gray-600">
+                {(room.amenities || []).map((item, index) => (
+                  <p key={`${item}-${index}`}>- {item}</p>
                 ))}
               </div>
-
             </div>
 
-  <PaymentForm
-  room={room}   
-  nights={nights}
-  total={total}
-  checkIn={checkIn}
-  checkOut={checkOut}
-/>
-
+            <PaymentForm
+              room={room}
+              nights={nights}
+              total={total}
+              checkIn={checkIn}
+              checkOut={checkOut}
+            />
           </div>
-
         </div>
-
       </div>
     </>
   );
 }
+

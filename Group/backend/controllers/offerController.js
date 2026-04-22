@@ -37,7 +37,18 @@ export const getOfferById = async (req, res) => {
 export const createOffer = async (req, res) => {
   if (rejectIfInvalid(req, res)) return;
   try {
-    const { title, type, badge, discount, originalPrice, pricePerNight, expiryDate, hotelId, description } = req.body;
+    const {
+      title,
+      type,
+      badge,
+      discount,
+      originalPrice,
+      pricePerNight,
+      expiryDate,
+      roomId,
+      hotelId,
+      description,
+    } = req.body;
 
     const offer = await Offer.create({
       title,
@@ -47,6 +58,7 @@ export const createOffer = async (req, res) => {
       originalPrice,
       pricePerNight,
       expiryDate,
+      roomId,
       hotelId,
       description,
     });

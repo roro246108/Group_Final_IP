@@ -1,3 +1,4 @@
+import { getSafeRoomImage } from "../utils/roomMedia";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CountdownTimer from "./CountdownTimer";
@@ -34,6 +35,9 @@ const OfferCard = ({ offer, appliedPromo }) => {
         <img
           src={offer.image}
           alt={offer.title}
+          onError={(e) => {
+            e.currentTarget.src = getSafeRoomImage({ type: offer.type || "Standard" });
+          }}
           className="w-full h-full object-cover transition-transform duration-700"
           style={{ transform: isHovered ? "scale(1.06)" : "scale(1)" }}
         />
@@ -118,10 +122,18 @@ const OfferCard = ({ offer, appliedPromo }) => {
             onClick={(e) => {
               e.stopPropagation();
 
+              const discountedPrice = Number(finalPrice);
+
               // Build a room object from the offer's hotel data so BookingCheckOut works
               const room = {
+                _id:       offer.roomId,
                 image:     offer.image,
-                price:     offer.discountedPrice,
+                price:     discountedPrice,
+                originalPrice: Number(offer.originalPrice) || discountedPrice,
+                discountedPrice,
+                discountPercent: Number(offer.discountPercent) || 0,
+                offerBadge: offer.badge,
+                offerTitle: offer.title,
                 roomName:  offer.roomName,
                 branch:    offer.branch,
                 guests:    offer.guests,

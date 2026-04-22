@@ -19,47 +19,8 @@ import {
   X,
 } from "lucide-react";
 import FAQAccordion from "../Components/FAQAccordion";
-import { apiPost } from "../services/apiClient";
+import { apiGet, apiPost } from "../services/apiClient";
 import { useAuth } from "../Context/AuthContext";
-
-// ── Contact info for all branches ──
-const BRANCHES = [
-  {
-    name: "Downtown City Center",
-    address: "120 King Fahad Road, Riyadh 12211",
-    phone: "+966 11 456 7890",
-    email: "downtown@luxestay.com",
-    hours: "24 / 7 Front Desk",
-  },
-  {
-    name: "Beachfront Resort",
-    address: "Corniche Boulevard, Jeddah 23511",
-    phone: "+966 12 345 6789",
-    email: "beach@luxestay.com",
-    hours: "24 / 7 Front Desk",
-  },
-  {
-    name: "Mountain Lodge",
-    address: "Al Hada Heights, Taif 26514",
-    phone: "+966 12 987 6543",
-    email: "mountain@luxestay.com",
-    hours: "6 AM – 11 PM",
-  },
-  {
-    name: "Airport Business Hub",
-    address: "KFIA Terminal Road, Riyadh 13462",
-    phone: "+966 11 222 3344",
-    email: "airport@luxestay.com",
-    hours: "24 / 7 Front Desk",
-  },
-  {
-    name: "Lakeside Retreat",
-    address: "Wadi Namar Park, Riyadh 14922",
-    phone: "+966 11 555 7788",
-    email: "lakeside@luxestay.com",
-    hours: "7 AM – 10 PM",
-  },
-];
 
 const INQUIRY_TYPES = [
   "General Inquiry",
@@ -72,6 +33,16 @@ const INQUIRY_TYPES = [
 ];
 
 const MAX_MESSAGE_LENGTH = 1000;
+
+function normalizeBranch(hotel = {}) {
+  return {
+    name: hotel.name || "Branch",
+    address: hotel.address || "Address not available",
+    phone: hotel.phone || "Phone not available",
+    email: hotel.email || "Email not available",
+    hours: hotel.status === "Active" ? "24 / 7 Front Desk" : "Currently unavailable",
+  };
+}
 
 // ── Toast ──
 function Toast({ message, type, onClose }) {
@@ -107,11 +78,41 @@ export default function ContactHelp() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("faq"); // "faq" | "contact" | "branches"
+  const [branches, setBranches] = useState([]);
   const formRef = useRef(null);
 
   const showToast = useCallback((message, type = "success") => {
     setToast({ message, type, key: Date.now() });
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBranches = async () => {
+      try {
+        const data = await apiGet("/hotels");
+        if (!isMounted) return;
+
+        const hotelBranches = Array.isArray(data?.hotels)
+          ? data.hotels
+              .filter((hotel) => hotel?.status !== "Inactive")
+              .map(normalizeBranch)
+          : [];
+
+        setBranches(hotelBranches);
+      } catch (error) {
+        if (isMounted) {
+          setBranches([]);
+          showToast(error.message || "Unable to load branch data right now.", "error");
+        }
+      }
+    };
+
+    loadBranches();
+    return () => {
+      isMounted = false;
+    };
+  }, [showToast]);
 
   // ── Validation ──
   function validate() {
@@ -366,7 +367,7 @@ export default function ContactHelp() {
                       className={`${inputClass("branch")} border border-sky-200`}
                     >
                       <option value="">Select a branch…</option>
-                      {BRANCHES.map((b) => (
+                      {branches.map((b) => (
                         <option key={b.name} value={b.name}>
                           {b.name}
                         </option>
@@ -538,7 +539,7 @@ export default function ContactHelp() {
               Our Branches
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {BRANCHES.map((branch) => (
+              {branches.map((branch) => (
                 <div
                   key={branch.name}
                   className="bg-white rounded-2xl shadow-md border border-sky-100 p-6 hover:shadow-lg transition-shadow"
@@ -572,10 +573,12 @@ export default function ContactHelp() {
 
         {/* ── Footer note ── */}
         <p className="text-center text-xs text-sky-500 mt-12">
-          LuxeStay Support — Committed to exceptional guest service across all five branches.
+          Blue Wave Support - Committed to exceptional guest service across our branches.
         </p>
       </div>
       <Footer />
     </div>
   );
 }
+
+

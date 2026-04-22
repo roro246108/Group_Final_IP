@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { validPromoCodes } from "../data/offersData";
 import { useOffers } from "../Context/OffersContext";
 import OfferCard from "../components/OfferCard";
@@ -58,23 +58,14 @@ const NumberTicker = ({ target, duration = 2000 }) => {
 const OffersPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [appliedPromo, setAppliedPromo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [visibleOffers, setVisibleOffers] = useState([]);
 
-  const { mappedOffers } = useOffers();
+  const { mappedOffers, loading } = useOffers();
 
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
+  const visibleOffers = useMemo(() => {
     const activeOffers = mappedOffers.filter((o) => o.active);
-    const filtered = selectedCategory === "All"
+    return selectedCategory === "All"
       ? activeOffers
       : activeOffers.filter((o) => o.category === selectedCategory);
-    setVisibleOffers(filtered);
   }, [selectedCategory, mappedOffers]);
 
   const handlePromoApplied = (code) => {

@@ -5,7 +5,7 @@ function buildDirectAtlasUri(srvUri) {
     const parsed = new URL(srvUri);
     const username = encodeURIComponent(parsed.username);
     const password = encodeURIComponent(parsed.password);
-    const database = parsed.pathname.replace(/^\//, "") || "test";
+    const database = parsed.pathname.replace(/^\//, "") || "hotel-booking";
     const query = new URLSearchParams(parsed.searchParams);
 
     query.set("retryWrites", query.get("retryWrites") || "true");
@@ -27,6 +27,14 @@ const connectDB = async () => {
 
   mongoose.set("bufferCommands", false);
 
+  let configuredDbName = "hotel-booking";
+  try {
+    const parsed = new URL(process.env.MONGO_URI);
+    configuredDbName = parsed.pathname.replace(/^\//, "") || "hotel-booking";
+  } catch {
+    configuredDbName = "hotel-booking";
+  }
+
   try {
     const candidates = [
       process.env.MONGO_URI.startsWith("mongodb+srv")
@@ -42,9 +50,10 @@ const connectDB = async () => {
       if (!uri) continue;
       try {
         await mongoose.connect(uri, {
+          dbName: configuredDbName,
           serverSelectionTimeoutMS: 10000,
         });
-        console.log("MongoDB connected successfully ");
+        console.log(`MongoDB connected successfully to ${mongoose.connection.name}`);
         return;
       } catch (error) {
         lastError = error;

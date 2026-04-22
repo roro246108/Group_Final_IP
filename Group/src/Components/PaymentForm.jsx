@@ -1,82 +1,92 @@
-import React, { useState } from "react";
-import img from "../assets/Images/Visa4.png";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 
+const CLEANING_FEE = 100;
+const TAXES = 240;
 
 export default function PaymentForm({ room, nights, total, checkIn, checkOut }) {
-
   const navigate = useNavigate();
 
+  const roomPrice = Number(room?.price) || 0;
+  const originalPrice =
+    Number(room?.originalPrice) > roomPrice ? Number(room.originalPrice) : 0;
+  const guestCount = Number(room?.guests) || 1;
+  const roomSubtotal = nights > 0 ? nights * roomPrice : 0;
+
   const handleProceed = () => {
-  if (!nights || nights <= 0) {
-    alert("Please select your dates first to calculate total cost.");
-    return;
-  }
+    if (!nights || nights <= 0) {
+      alert("Please select your dates first to calculate total cost.");
+      return;
+    }
 
-  if (!room?.roomName || !room?.price) {
-    alert("Room information is missing.");
-    return;
-  }
+    if (!room?.roomName || !roomPrice) {
+      alert("Room information is missing.");
+      return;
+    }
 
-  navigate("/payment", { state: { room, nights, total, checkIn, checkOut } });
-};
-  
+    navigate("/payment", { state: { room, nights, total, checkIn, checkOut } });
+  };
+
   return (
-
-    <div className="rounded-xl shadow-lg p-6 w-full max-w-[600px] bg-[#edf7ff]">
-
-      {/* PRICE */}
-      <div className="flex justify-between items-center mb-4">
-
+    <div className="w-full max-w-[600px] rounded-xl bg-[#edf7ff] p-6 shadow-lg">
+      <div className="mb-4 flex items-center justify-between">
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold">${room.price.toFixed(2)}</span>
-          <span className="text-gray-500 text-sm">{nights * room.price}</span>
+          {originalPrice > 0 && (
+            <span className="text-sm text-gray-400 line-through">
+              ${originalPrice.toFixed(2)}
+            </span>
+          )}
+          <span className="text-2xl font-bold">${roomPrice.toFixed(2)}</span>
+          <span className="text-sm text-gray-500">/ night</span>
         </div>
 
-        <span className="text-sm text-gray-600 flex items-center gap-1">
-          👥 Max 2 guests
+        <span className="flex items-center gap-1 text-sm text-gray-600">
+          {`Max ${guestCount} ${guestCount === 1 ? "guest" : "guests"}`}
         </span>
-
       </div>
 
-      <hr className="mb-4"/>
+      <hr className="mb-4" />
 
-      {/* SUMMARY */}
       <div className="space-y-2 text-sm">
+        {originalPrice > 0 && (
+          <div className="flex justify-between text-[#1e3a8a]">
+            <span>Offer discount</span>
+            <span>-{Number(room?.discountPercent || 0)}%</span>
+          </div>
+        )}
 
         {nights > 0 && (
           <div className="flex justify-between">
-            <span>{nights} nights at $450/night</span>
-            <span>${nights * 450}</span>
+            <span>{nights} nights at ${roomPrice}/night</span>
+            <span>${roomSubtotal.toFixed(2)}</span>
           </div>
         )}
 
         <div className="flex justify-between">
           <span>Cleaning fee</span>
-          <span>$100.00</span>
+          <span>${CLEANING_FEE.toFixed(2)}</span>
         </div>
 
         <div className="flex justify-between">
           <span>Taxes</span>
-          <span>$240.00</span>
+          <span>${TAXES.toFixed(2)}</span>
         </div>
 
-        <hr/>
+        <hr />
 
-        <div className="flex justify-between font-bold text-lg">
+        <div className="flex justify-between text-lg font-bold">
           <span>Total Cost</span>
-          <span>${total}</span>
+          <span>${Number(total || 0).toFixed(2)}</span>
         </div>
-
       </div>
 
-   <button
-  type="button"
-  onClick={handleProceed}
-  className="w-full bg-[#1e3a8a] text-white py-3 rounded-xl"
->
-  Pay
-</button>
-</div>
+      <button
+        type="button"
+        onClick={handleProceed}
+        className="mt-4 w-full rounded-xl bg-[#1e3a8a] py-3 text-white"
+      >
+        Pay
+      </button>
+    </div>
   );
 }

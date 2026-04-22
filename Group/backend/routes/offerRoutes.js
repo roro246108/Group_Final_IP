@@ -34,6 +34,7 @@ const offerRules = [
   body("pricePerNight").isFloat({ min: 1 })
     .withMessage("Price per night must be a positive number"),
   body("expiryDate").isISO8601().withMessage("Expiry date must be a valid date"),
+  body("roomId").optional().isMongoId().withMessage("roomId must be a valid room id"),
   body("hotelId").optional().isInt().withMessage("hotelId must be an integer"),
   body("description").optional().isString().trim()
     .isLength({ max: 500 }).withMessage("Description must be at most 500 characters"),

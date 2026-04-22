@@ -11,7 +11,12 @@ const offerSchema = new mongoose.Schema(
     expiryDate:    { type: Date, required: true },
     active:        { type: Boolean, default: true },
     description:   { type: String, default: "" },
-    hotelId:       { type: Number },   // links to room in hotels.js
+    roomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Room",
+      required: false,
+    },
+    hotelId:       { type: Number },   // legacy field for old seeded offers
   },
   { timestamps: true }
 );
