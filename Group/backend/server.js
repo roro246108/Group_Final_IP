@@ -3,12 +3,14 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import connectDB from "./db.js";
+
 import authRoutes from "./routes/authRoutes.js";
 import hotelRoutes from "./routes/hotelRoutes.js";
 import favoriteRoutes from "./routes/favoriteRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
 import bookingRoutes from "./routes/bookingRouts.js";
 import reviewRoutes from "./routes/review.js";
+import profileRoutes from "./routes/profileRoutes.js";
 
 // middlewares
 import { globalMiddlewares } from "./MiddleWares/index.js";
@@ -25,10 +27,6 @@ const PORT = process.env.PORT || 5050;
 // global middleware
 globalMiddlewares(app);
 
-// routes
-
-
-
 // test route
 app.get("/", (req, res) => {
   res.send("API is running");
@@ -40,6 +38,7 @@ app.use("/favorites", favoriteRoutes);
 app.use("/rooms", roomRoutes);
 app.use("/bookings", bookingRoutes);
 app.use("/reviews", reviewRoutes);
+app.use("/profile", profileRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/hotels", hotelRoutes);
@@ -47,12 +46,15 @@ app.use("/api/favorites", favoriteRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/profile", profileRoutes);
 
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+connectDB()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Failed to start server:", error.message);
+    process.exit(1);
   });
-}).catch((error) => {
-  console.error("Failed to start server:", error.message);
-  process.exit(1);
-});

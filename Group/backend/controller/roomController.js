@@ -1,5 +1,18 @@
 import Room from "../models/Room.js";
 
+const normalizeDateStatuses = (dateStatuses = {}) => {
+  if (!dateStatuses || typeof dateStatuses !== "object") {
+    return {};
+  }
+
+  return Object.entries(dateStatuses).reduce((accumulator, [dateKey, status]) => {
+    if (!dateKey) return accumulator;
+
+    accumulator[dateKey] = status === "reserved" ? "reserved" : "available";
+    return accumulator;
+  }, {});
+};
+
 const normalizeRoomPayload = (body = {}) => {
   const status =
     body.status === "Occupied" || body.status === "Maintenance"
@@ -10,6 +23,7 @@ const normalizeRoomPayload = (body = {}) => {
     ...body,
     status,
     available: status === "Available",
+    dateStatuses: normalizeDateStatuses(body.dateStatuses),
   };
 };
 

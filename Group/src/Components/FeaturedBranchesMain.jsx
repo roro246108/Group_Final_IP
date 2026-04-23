@@ -1,35 +1,42 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Star } from "lucide-react";
-
-import branch1 from "../assets/Images/Alex_Branch.png";
-import branch2 from "../assets/Images/Ain_El_Sokhna_Branch.png";
-import branch3 from "../assets/Images/MrasaAlam_Branch.avif";
-
-const branches = [
-  {
-    id: 1,
-    name: "Cairo Branch",
-    location: "New Cairo, Egypt",
-    description: "A refined city stay with modern comfort and premium hospitality.",
-    image: branch1,
-  },
-  {
-    id: 2,
-    name: "Alexandria Branch",
-    location: "Alexandria, Egypt",
-    description: "A stylish coastal retreat blending elegance, comfort, and sea charm.",
-    image: branch2,
-  },
-  {
-    id: 3,
-    name: "Marsa Alam Branch",
-    location: "Marsa Alam, Egypt",
-    description: "A peaceful beachfront escape surrounded by natural beauty.",
-    image: branch3,
-  },
-];
+import { MapPin } from "lucide-react";
+import { apiGet } from "../services/apiClient";
+import { normalizeHotelBranch } from "../utils/hotelBranches";
 
 export default function FeaturedBranchesPreview() {
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBranches = async () => {
+      try {
+        const data = await apiGet("/hotels");
+        if (!isMounted) return;
+
+        const normalizedBranches = Array.isArray(data?.hotels)
+          ? data.hotels
+              .filter((hotel) => hotel?.status !== "Inactive")
+              .map(normalizeHotelBranch)
+              .slice(0, 3)
+          : [];
+
+        setBranches(normalizedBranches);
+      } catch {
+        if (isMounted) {
+          setBranches([]);
+        }
+      }
+    };
+
+    loadBranches();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <section className="bg-[#F8FAFC] px-6 py-20 md:px-10 lg:px-16">
       <div className="mx-auto max-w-7xl">
@@ -55,6 +62,11 @@ export default function FeaturedBranchesPreview() {
                 <img
                   src={branch.image}
                   alt={branch.name}
+                  onError={(event) => {
+                    if (branch.fallbackImage && event.currentTarget.src !== branch.fallbackImage) {
+                      event.currentTarget.src = branch.fallbackImage;
+                    }
+                  }}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               </div>

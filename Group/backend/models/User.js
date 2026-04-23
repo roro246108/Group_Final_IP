@@ -57,6 +57,45 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
+
+    status: {
+      type: String,
+      default: "active",
+    },
+
+    countryCode: {
+      type: String,
+      trim: true,
+      default: "+20",
+    },
+    address: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    country: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    dob: {
+      type: String,
+      default: "",
+    },
+
+    lastLoginAt: {
+      type: Date,
+    },
+    ipAddress: {
+      type: String,
+      trim: true,
+    },
+
     favorites: {
       type: [favoriteSchema],
       default: [],

@@ -9,15 +9,13 @@ export default function Navbar() {
   const location = useLocation();
   const { currentUser, isAuthenticated } = useAuth();
 
-  const isAdminRoute = location.pathname.startsWith("/admin");
-  if (isAdminRoute) return null;
-
-  const isHomePage = location.pathname === "/";
-
   const [showNavbar, setShowNavbar] = useState(true);
   const [scrolledUpStyle, setScrolledUpStyle] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const lastScrollY = useRef(0);
+
+  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isHomePage = location.pathname === "/";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,6 +38,8 @@ export default function Navbar() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  if (isAdminRoute) return null;
 
   const navTextColor =
     isHomePage && !scrolledUpStyle ? "text-white" : "text-[#223a5e]";
@@ -66,8 +66,8 @@ export default function Navbar() {
         showNavbar ? "translate-y-0" : "-translate-y-full"
       } ${navBackground}`}
     >
-      <div className="w-full px-4 md:px-6 lg:px-10 h-24 flex items-center justify-between">
-        <div className="flex items-center w-[150px] lg:w-[220px]">
+      <div className="flex h-24 w-full items-center justify-between px-4 md:px-6 lg:px-10">
+        <div className="flex w-[140px] items-center lg:w-[180px]">
           <Link
             to="/"
             className="inline-block transition-transform duration-300 hover:scale-105"
@@ -75,13 +75,13 @@ export default function Navbar() {
             <img
               src={currentLogo}
               alt="Blue Waves Hotel Logo"
-              className="h-16 md:h-20 w-auto object-contain"
+              className="h-14 w-auto object-contain md:h-16"
             />
           </Link>
         </div>
 
         <div
-          className={`hidden md:flex flex-1 items-center justify-center gap-6 lg:gap-10 text-[16px] lg:text-[17px] font-medium ${navTextColor}`}
+          className={`hidden flex-1 items-center justify-center gap-8 text-[15px] font-semibold md:flex lg:gap-10 ${navTextColor}`}
         >
           <Link
             to="/"
@@ -117,7 +117,7 @@ export default function Navbar() {
 
         </div>
 
-        <div className="hidden md:flex items-center justify-end gap-3 w-[190px] lg:w-[280px]">
+        <div className="hidden w-[180px] items-center justify-end gap-3 md:flex lg:w-[240px]">
           {!isAuthenticated ? (
             <>
               <Link

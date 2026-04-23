@@ -2,50 +2,77 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { MapPin, Star, Sparkles } from "lucide-react";
 import BranchRoomsSection from "../Components/BranchRoomsSection";
-import { locations, branchDetails } from "../data/hotels";
 import Navbar from "../Components/Navbar";
 import Footer from "../Components/Footer";
 import { apiGet } from "../services/apiClient";
 import { normalizeRoomRecord } from "../utils/roomMedia";
+import { normalizeHotelBranch } from "../utils/hotelBranches";
 
 export default function UserBranchDetails() {
   const { slug } = useParams();
 
   const [rooms, setRooms] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState(null);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [roomsError, setRoomsError] = useState("");
 
-  const branchInfo = branchDetails.find((branch) => branch.slug === slug);
-  const branchLocation = locations.find(
-    (location) => location.name === branchInfo?.title
-  );
-
-  const selectedBranch =
-    branchInfo && branchLocation
-      ? {
-          ...branchInfo,
-          ...branchLocation,
-        }
-      : null;
-
   useEffect(() => {
-    const fetchRooms = async () => {
+    let isMounted = true;
+
+    const fetchBranchData = async () => {
       try {
         setLoadingRooms(true);
         setRoomsError("");
+        const [hotelsData, roomsData] = await Promise.all([
+          apiGet("/hotels"),
+          apiGet("/rooms"),
+        ]);
 
-        const data = await apiGet("/rooms");
-        setRooms(data.map(normalizeRoomRecord));
+        if (!isMounted) return;
+
+        const matchedBranch = Array.isArray(hotelsData?.hotels)
+          ? hotelsData.hotels
+              .filter((hotel) => hotel?.status !== "Inactive")
+              .map(normalizeHotelBranch)
+              .find((branch) => branch.slug === slug)
+          : null;
+
+        setSelectedBranch(matchedBranch || null);
+        setRooms(Array.isArray(roomsData) ? roomsData.map(normalizeRoomRecord) : []);
       } catch (error) {
         console.error("Error fetching rooms:", error);
-        setRoomsError("Failed to load rooms.");
+        if (isMounted) {
+          setSelectedBranch(null);
+          setRooms([]);
+          setRoomsError("Failed to load branch data.");
+        }
       } finally {
-        setLoadingRooms(false);
+        if (isMounted) {
+          setLoadingRooms(false);
+        }
       }
     };
 
-    fetchRooms();
-  }, []);
+    fetchBranchData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
+
+  if (loadingRooms && !selectedBranch) {
+    return (
+      <>
+        <Navbar />
+        <section className="min-h-screen bg-[#edf7ff] pt-36 px-6 md:px-10 lg:px-12">
+          <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow-sm p-8 text-center text-[#5f6f8c]">
+            Loading branch details...
+          </div>
+        </section>
+        <Footer />
+      </>
+    );
+  }
 
   if (!selectedBranch) {
     return (
@@ -65,17 +92,6 @@ export default function UserBranchDetails() {
       </>
     );
   }
-
-  const branchAmenities = [
-    "24/7 Front Desk",
-    "Luxury Rooms",
-    "Free WiFi",
-    "Swimming Pool",
-    "Fine Dining",
-    "Spa & Wellness",
-    "Airport Transfer",
-    "Room Service",
-  ];
 
   const roomDescriptionByType = {
     Standard:
@@ -102,7 +118,15 @@ export default function UserBranchDetails() {
     }));
 
   const branchLocationText =
-    selectedBranch.address || selectedBranch.city || "Egypt";
+    selectedBranch.destination || selectedBranch.location || "Egypt";
+  const branchHighlights =
+    selectedBranch.features.length > 0
+      ? selectedBranch.features
+      : ["24/7 Front Desk", "Premium Hospitality", "Luxury Stay"];
+  const branchAmenities =
+    selectedBranch.amenities.length > 0
+      ? selectedBranch.amenities
+      : ["Free WiFi", "Room Service", "Front Desk"];
 
   return (
     <>
@@ -115,6 +139,14 @@ export default function UserBranchDetails() {
               <img
                 src={selectedBranch.image}
                 alt={selectedBranch.title}
+                onError={(event) => {
+                  if (
+                    selectedBranch.fallbackImage &&
+                    event.currentTarget.src !== selectedBranch.fallbackImage
+                  ) {
+                    event.currentTarget.src = selectedBranch.fallbackImage;
+                  }
+                }}
                 className="w-full h-[280px] md:h-[420px] object-cover"
               />
 
@@ -159,7 +191,7 @@ export default function UserBranchDetails() {
                     <span className="font-semibold text-[#0b2b6f] text-xl md:text-xl">
                       Experiences:
                     </span>{" "}
-                    {selectedBranch.features.length}
+                    {branchHighlights.length}
                   </p>
 
                   <p className="text-lg md:text-xl leading-8 flex items-center gap-2">
@@ -183,7 +215,7 @@ export default function UserBranchDetails() {
               </h3>
 
               <div className="space-y-3">
-                {selectedBranch.features.map((feature) => (
+                {branchHighlights.map((feature) => (
                   <div
                     key={feature}
                     className="group/item flex items-center gap-3 rounded-2xl bg-[#d9ecff] px-4 py-3 transition-all duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:shadow-[0_8px_20px_rgba(47,111,179,0.18)]"

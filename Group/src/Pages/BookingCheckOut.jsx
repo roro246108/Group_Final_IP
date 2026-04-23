@@ -100,6 +100,7 @@ export default function RoomBooking() {
     setLoading(true);
     try {
       const response = await axios.post("/api/bookings/search", {
+        roomId: room._id || room.id,
         branch: room.branch || room.city,
         roomName: room.roomName,
         checkIn: new Date(checkIn),

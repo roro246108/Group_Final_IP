@@ -109,7 +109,7 @@ export default function HomeMainSection() {
 
   return (
     <section className="relative w-full overflow-hidden bg-white">
-      <div className="relative min-h-screen w-full overflow-hidden">
+      <div className="relative min-h-[92vh] w-full overflow-hidden">
         <video
           autoPlay
           loop
@@ -120,18 +120,18 @@ export default function HomeMainSection() {
           <source src={MainBackground} type="video/mp4" />
         </video>
 
-        <div className="absolute inset-0 bg-black/45"></div>
+        <div className="absolute inset-0 bg-black/40"></div>
 
-        <div className="relative z-10 flex min-h-screen flex-col items-center justify-start px-6 pt-36 text-center md:pt-44">
-          <p className="mb-4 text-xs uppercase tracking-[0.35em] text-[#C8D9E6] md:text-sm">
+        <div className="relative z-10 flex min-h-[92vh] flex-col items-center justify-start px-6 pt-44 text-center md:pt-48">
+          <p className="mb-6 text-xs uppercase tracking-[0.4em] text-[#dbe4f0] md:text-sm">
             Welcome to Blue Waves Hotel
           </p>
 
-          <h1 className="max-w-5xl text-5xl font-semibold leading-[1.05] text-white md:text-7xl">
+          <h1 className="max-w-5xl text-5xl font-semibold leading-[1.08] text-white md:text-7xl lg:text-[72px]">
             Experience Comfort Like Never Before
           </h1>
 
-          <p className="mt-8 max-w-3xl text-base leading-8 text-white/90 md:text-[22px]">
+          <p className="mt-8 max-w-3xl text-base leading-8 text-white/90 md:text-[20px]">
             Book premium stays, exclusive offers, and unforgettable experiences
             in our finest destinations.
           </p>
@@ -151,18 +151,18 @@ export default function HomeMainSection() {
         </div>
       </div>
 
-      <div className="relative z-20 mx-auto -mt-20 flex w-full justify-center px-6 pb-10 md:-mt-24 md:pb-12">
+      <div className="relative z-20 mx-auto -mt-16 flex w-full justify-center px-6 pb-10 md:-mt-20 md:pb-12">
         <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
           <Link
             to="/hotelDetails"
-            className="rounded-full bg-[#7ea0d6] px-8 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:bg-[#2f6fb3]"
+            className="rounded-full bg-[#7ea0d6] px-9 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(47,65,86,0.18)] transition-all duration-300 hover:-translate-y-1 hover:bg-[#2f6fb3]"
           >
             Explore Hotels
           </Link>
 
           <Link
             to="/offers"
-            className="rounded-full border border-[#2F4156] bg-white px-8 py-3 text-sm font-medium text-[#2F4156] transition-all duration-300 hover:-translate-y-1 hover:bg-[#2F4156] hover:text-white"
+            className="rounded-full border border-[#2F4156] bg-white px-9 py-3 text-sm font-semibold text-[#2F4156] shadow-[0_10px_24px_rgba(47,65,86,0.08)] transition-all duration-300 hover:-translate-y-1 hover:bg-[#2F4156] hover:text-white"
           >
             View Offers
           </Link>

@@ -1,57 +1,79 @@
-import React, { useState, useEffect } from 'react';
-import { useUser } from '../Context/UserContext';
-import { User, Mail, Phone, Globe, Calendar, Save, CheckCircle, Loader2, MapPin, Building2, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { getMyProfile, updateMyProfile } from "../services/profileApi";
+import {
+  User,
+  Mail,
+  Phone,
+  Globe,
+  Calendar,
+  Save,
+  CheckCircle,
+  Loader2,
+  MapPin,
+  Building2,
+  ChevronDown,
+} from "lucide-react";
 
 export default function EditProfileForm() {
-  const { user, updateUser } = useUser();
-  
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    countryCode: '+20',
-    phone: '',
-    address: '',
-    city: '',
-    country: '',
-    dob: ''
+    firstName: "",
+    lastName: "",
+    email: "",
+    countryCode: "+20",
+    phone: "",
+    address: "",
+    city: "",
+    country: "",
+    dob: "",
   });
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        countryCode: user.countryCode || '+20',
-        phone: user.phone || '',
-        address: user.address || '',
-        city: user.city || '',
-        country: user.country || '',
-        dob: user.dob || ''
-      });
-    }
-  }, [user]);
+    const fetchProfile = async () => {
+      try {
+        const data = await getMyProfile();
+        const user = data.user;
+
+        setFormData({
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          email: user.email || "",
+          countryCode: user.countryCode || "+20",
+          phone: user.phone || "",
+          address: user.address || "",
+          city: user.city || "",
+          country: user.country || "",
+          dob: user.dob || "",
+        });
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+
     try {
-      await updateUser(formData);
-      setIsSaving(false);
+      await updateMyProfile(formData);
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
     } catch (error) {
       console.error("Failed to update profile:", error);
+    } finally {
       setIsSaving(false);
     }
   };
 
-  const inputClass = "w-full pl-10 pr-4 py-3 bg-[#f8fbff] border border-[#d7e6f3] rounded-xl text-[#26567e] font-medium focus:ring-2 focus:ring-[#26567e]/20 focus:border-[#26567e] transition-all outline-none placeholder:text-slate-300";
-  const labelClass = "flex items-center gap-2 text-xs font-black text-[#26567e] mb-2 ml-1 uppercase tracking-wider";
+  const inputClass =
+    "w-full pl-10 pr-4 py-3 bg-[#f8fbff] border border-[#d7e6f3] rounded-xl text-[#26567e] font-medium focus:ring-2 focus:ring-[#26567e]/20 focus:border-[#26567e] transition-all outline-none placeholder:text-slate-300";
+  const labelClass =
+    "flex items-center gap-2 text-xs font-black text-[#26567e] mb-2 ml-1 uppercase tracking-wider";
 
   return (
     <form onSubmit={handleSubmit} className="animate-in fade-in duration-500">
@@ -70,14 +92,15 @@ export default function EditProfileForm() {
           <label className={labelClass}><User className="w-3.5 h-3.5" /> First Name</label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.firstName} placeholder="e.g. Zeinab" onChange={(e) => setFormData({...formData, firstName: e.target.value})} required />
+            <input type="text" className={inputClass} value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} required />
           </div>
         </div>
+
         <div>
           <label className={labelClass}><User className="w-3.5 h-3.5" /> Last Name</label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.lastName} placeholder="e.g. Mohamed" onChange={(e) => setFormData({...formData, lastName: e.target.value})} required />
+            <input type="text" className={inputClass} value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} required />
           </div>
         </div>
 
@@ -85,7 +108,7 @@ export default function EditProfileForm() {
           <label className={labelClass}><Mail className="w-3.5 h-3.5" /> Email Address</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="email" className={inputClass} value={formData.email} placeholder="e.g. zeinab@email.com" onChange={(e) => setFormData({...formData, email: e.target.value})} required />
+            <input type="email" className={inputClass} value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
           </div>
         </div>
 
@@ -93,9 +116,9 @@ export default function EditProfileForm() {
           <label className={labelClass}><Phone className="w-3.5 h-3.5" /> Phone Number</label>
           <div className="relative flex gap-2">
             <div className="relative min-w-[100px]">
-              <select 
-                value={formData.countryCode} 
-                onChange={(e) => setFormData({...formData, countryCode: e.target.value})}
+              <select
+                value={formData.countryCode}
+                onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
                 className="w-full pl-3 pr-8 py-3 bg-[#f8fbff] border border-[#d7e6f3] rounded-xl text-[#26567e] font-medium appearance-none focus:ring-2 focus:ring-[#26567e]/20 outline-none transition-all cursor-pointer"
               >
                 <option value="+20">🇪🇬 +20</option>
@@ -105,14 +128,14 @@ export default function EditProfileForm() {
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#26567e] pointer-events-none" />
             </div>
+
             <div className="relative flex-1">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-              <input 
-                type="tel" 
-                className={inputClass} 
+              <input
+                type="tel"
+                className={inputClass}
                 value={formData.phone}
-                placeholder="100 000 0000"
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
           </div>
@@ -122,7 +145,7 @@ export default function EditProfileForm() {
           <label className={labelClass}><Calendar className="w-3.5 h-3.5" /> Date of Birth</label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50 pointer-events-none" />
-            <input type="date" className={inputClass} value={formData.dob} onChange={(e) => setFormData({...formData, dob: e.target.value})} />
+            <input type="date" className={inputClass} value={formData.dob} onChange={(e) => setFormData({ ...formData, dob: e.target.value })} />
           </div>
         </div>
 
@@ -130,35 +153,37 @@ export default function EditProfileForm() {
           <label className={labelClass}><MapPin className="w-3.5 h-3.5" /> Street Address</label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.address} placeholder="e.g. 123 Nile Corniche" onChange={(e) => setFormData({...formData, address: e.target.value})} />
+            <input type="text" className={inputClass} value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
           </div>
         </div>
+
         <div>
           <label className={labelClass}><Building2 className="w-3.5 h-3.5" /> City</label>
           <div className="relative">
             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.city} placeholder="e.g. Cairo" onChange={(e) => setFormData({...formData, city: e.target.value})} />
+            <input type="text" className={inputClass} value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
           </div>
         </div>
+
         <div>
           <label className={labelClass}><Globe className="w-3.5 h-3.5" /> Country</label>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#26567e]/50" />
-            <input type="text" className={inputClass} value={formData.country} placeholder="e.g. Egypt" onChange={(e) => setFormData({...formData, country: e.target.value})} />
+            <input type="text" className={inputClass} value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} />
           </div>
         </div>
       </div>
 
       <div className="mt-10 pt-6 border-t border-gray-100 flex items-center gap-4">
-        {/* UPDATED BUTTON COLORS BELOW */}
-        <button 
-          type="submit" 
-          disabled={isSaving} 
+        <button
+          type="submit"
+          disabled={isSaving}
           className="flex items-center gap-2 bg-[#1557e7] hover:bg-[#1046ba] disabled:bg-slate-400 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-blue-100 transition-all active:scale-95"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          {isSaving ? "Saving..." : "Save Changes"}
         </button>
+
         {isSaved && (
           <div className="flex items-center gap-2 text-teal-600 animate-in fade-in slide-in-from-left-2">
             <CheckCircle className="w-4 h-4" />

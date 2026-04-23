@@ -1,4 +1,3 @@
-// routes/bookingRoutes.js
 import express from "express";
 import {
   createBooking,
@@ -6,19 +5,22 @@ import {
   getBookings,
   getBookingById,
   updateBooking,
-  deleteBooking
+  deleteBooking,
+  getMyBookings,
+  cancelMyBooking,
 } from "../controller/bookingController.js";
 
 import { protect } from "../MiddleWares/auth.js";
 
 const router = express.Router();
 
-router.post("/search", searchAvailability); // SEARCH availability
-router.get("/", getBookings); // GET all
-router.get("/:id", getBookingById); // GET one
-router.post("/", protect, createBooking); // CREATE
-router.patch("/:id", protect, updateBooking); // UPDATE
-router.delete("/:id", protect, deleteBooking); // DELETE
-
+router.post("/search", searchAvailability);
+router.get("/", getBookings);
+router.get("/my-bookings", protect, getMyBookings);
+router.get("/:id", getBookingById);
+router.post("/", protect, createBooking);
+router.patch("/:id", protect, updateBooking);
+router.patch("/:id/cancel", protect, cancelMyBooking);
+router.delete("/:id", protect, deleteBooking);
 
 export default router;

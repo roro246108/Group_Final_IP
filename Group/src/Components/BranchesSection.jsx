@@ -20,13 +20,18 @@ export default function BranchesSection({ branches = [] }) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
           {branches.map((branch, index) => (
             <div
-              key={index}
+              key={branch.id || branch.slug || index}
               className="group bg-white rounded-2xl shadow-md overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-xl flex flex-col h-full"
             >
               <div className="relative overflow-hidden">
                 <img
                   src={branch.image}
-                  alt={branch.title}
+                  alt={branch.title || branch.name}
+                  onError={(event) => {
+                    if (branch.fallbackImage && event.currentTarget.src !== branch.fallbackImage) {
+                      event.currentTarget.src = branch.fallbackImage;
+                    }
+                  }}
                   className="w-full h-40 object-cover transition-transform duration-700 group-hover:scale-105"
                 />
 
@@ -40,11 +45,11 @@ export default function BranchesSection({ branches = [] }) {
               <div className="p-4 flex flex-col flex-1">
                 <div className="mb-3 min-h-[52px] flex justify-between items-start gap-3">
                   <h3 className="text-2xl leading-tight font-serif text-[#0b1f44] max-w-[68%]">
-                    {branch.title}
+                    {branch.title || branch.name}
                   </h3>
 
                   <span className="text-[11px] text-gray-500 text-right whitespace-nowrap pt-1">
-                    {branch.location}
+                    {branch.location || branch.city}
                   </span>
                 </div>
 
@@ -53,7 +58,7 @@ export default function BranchesSection({ branches = [] }) {
                 </p>
 
                 <div className="flex flex-wrap gap-2 mb-4 min-h-[44px] content-start">
-                  {branch.features.map((feature, i) => (
+                  {(branch.features || []).map((feature, i) => (
                     <span
                       key={i}
                       className="bg-[#f3f4f6] text-gray-600 text-[10px] px-2.5 py-1 rounded-md"

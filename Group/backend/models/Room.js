@@ -90,6 +90,14 @@ const roomSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    dateStatuses: {
+      type: Map,
+      of: {
+        type: String,
+        enum: ["available", "reserved"],
+      },
+      default: {},
+    },
   },
   { timestamps: true }
 );

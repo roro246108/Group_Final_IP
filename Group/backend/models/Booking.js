@@ -4,6 +4,7 @@ const bookingSchema = new mongoose.Schema({
   email: { type: String, required: true, trim: true, lowercase: true },
   phone: { type: String, required: true, trim: true },
 
+  roomId: { type: String, trim: true },
   roomName: { type: String, trim: true },
   price: { type: Number, min: 0 },
   nights: { type: Number, min: 1 },

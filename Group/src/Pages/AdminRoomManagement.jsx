@@ -57,6 +57,32 @@ const normalizeRoomFromApi = (room) => ({
   dateStatuses: room.dateStatuses || {},
 });
 
+const normalizeDateOnly = (value) => {
+  if (!value) return null;
+
+  const datePart = String(value).split("T")[0];
+  const parsedDate = new Date(`${datePart}T00:00:00.000Z`);
+
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const buildStayDateKeys = (checkIn, checkOut) => {
+  const keys = [];
+  const current = normalizeDateOnly(checkIn);
+  const end = normalizeDateOnly(checkOut);
+
+  if (!current || !end || current >= end) {
+    return keys;
+  }
+
+  while (current < end) {
+    keys.push(current.toISOString().split("T")[0]);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return keys;
+};
+
 const getBranchMeta = (branch) => branchInfoByName[branch] || null;
 
 const getDefaultRoomNumbers = (type) =>
@@ -75,6 +101,7 @@ function AdminRoomManagement() {
   );
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState("");
+  const [bookings, setBookings] = useState([]);
 
   const [editingRoom, setEditingRoom] = useState(null);
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
@@ -128,10 +155,14 @@ function AdminRoomManagement() {
         setRoomsLoading(true);
         setRoomsError("");
 
-        const data = await apiGet("/rooms");
+        const [roomsData, bookingsData] = await Promise.all([
+          apiGet("/rooms"),
+          apiGet("/bookings").catch(() => []),
+        ]);
         if (cancelled) return;
 
-        setRooms(data.map(normalizeRoomFromApi));
+        setRooms(roomsData.map(normalizeRoomFromApi));
+        setBookings(Array.isArray(bookingsData) ? bookingsData : []);
       } catch (error) {
         if (cancelled) return;
         setRoomsError(error.message || "Failed to load rooms.");
@@ -163,6 +194,48 @@ function AdminRoomManagement() {
     );
     return compareDate < compareToday;
   };
+
+  const bookedDateStatusesByRoom = useMemo(() => {
+    return bookings.reduce((accumulator, booking) => {
+      if (
+        !booking ||
+        !booking.checkIn ||
+        !booking.checkOut ||
+        ["cancelled", "Cancelled"].includes(booking.status)
+      ) {
+        return accumulator;
+      }
+
+      const matchingRoom = rooms.find((room) => {
+        if (booking.roomId && String(booking.roomId) === String(room.id)) {
+          return true;
+        }
+
+        return (
+          booking.roomName === room.name &&
+          (!booking.branch || booking.branch === room.branch)
+        );
+      });
+
+      if (!matchingRoom) {
+        return accumulator;
+      }
+
+      const reservedDates = buildStayDateKeys(booking.checkIn, booking.checkOut);
+
+      if (reservedDates.length === 0) {
+        return accumulator;
+      }
+
+      const existingStatuses = accumulator[matchingRoom.id] || {};
+      reservedDates.forEach((dateKey) => {
+        existingStatuses[dateKey] = "reserved";
+      });
+
+      accumulator[matchingRoom.id] = existingStatuses;
+      return accumulator;
+    }, {});
+  }, [bookings, rooms]);
 
   const handleToggleStatus = (roomId) => {
     const roomBefore = rooms.find((room) => room.id === roomId);
@@ -266,21 +339,24 @@ function AdminRoomManagement() {
 
   const handleToggleDateStatus = (roomId, dateKey) => {
     const roomBefore = rooms.find((room) => room.id === roomId);
+    const isBookedDate = bookedDateStatusesByRoom[roomId]?.[dateKey] === "reserved";
+
+    if (!roomBefore || isBookedDate) return;
+
+    const currentStatus = roomBefore.dateStatuses?.[dateKey] || "available";
+    const nextStatus = currentStatus === "available" ? "reserved" : "available";
+    const nextDateStatuses = {
+      ...roomBefore.dateStatuses,
+      [dateKey]: nextStatus,
+    };
 
     setRooms((prevRooms) =>
       prevRooms.map((room) => {
         if (room.id !== roomId) return room;
 
-        const currentStatus = room.dateStatuses?.[dateKey] || "available";
-        const nextStatus =
-          currentStatus === "available" ? "reserved" : "available";
-
         return {
           ...room,
-          dateStatuses: {
-            ...room.dateStatuses,
-            [dateKey]: nextStatus,
-          },
+          dateStatuses: nextDateStatuses,
         };
       })
     );
@@ -288,36 +364,51 @@ function AdminRoomManagement() {
     setSelectedRoom((prevRoom) => {
       if (!prevRoom || prevRoom.id !== roomId) return prevRoom;
 
-      const currentStatus = prevRoom.dateStatuses?.[dateKey] || "available";
-      const nextStatus =
-        currentStatus === "available" ? "reserved" : "available";
-
       return {
         ...prevRoom,
-        dateStatuses: {
-          ...prevRoom.dateStatuses,
-          [dateKey]: nextStatus,
-        },
+        dateStatuses: nextDateStatuses,
       };
     });
 
-    if (roomBefore) {
-      const currentStatus = roomBefore.dateStatuses?.[dateKey] || "available";
-      const nextStatus =
-        currentStatus === "available" ? "reserved" : "available";
+    apiPatch(`/rooms/${roomId}`, {
+      roomName: roomBefore.name,
+      branch: roomBefore.branch,
+      city: roomBefore.city,
+      location: roomBefore.location,
+      type: roomBefore.type,
+      price: roomBefore.price,
+      status: roomBefore.status,
+      description: roomBefore.description,
+      image: roomBefore.image,
+      guests: roomBefore.guests,
+      beds: roomBefore.beds,
+      baths: roomBefore.baths,
+      size: roomBefore.size,
+      featured: roomBefore.featured,
+      amenities: roomBefore.amenities || [],
+      rating: roomBefore.rating || 0,
+      dateStatuses: nextDateStatuses,
+    }).catch((error) => {
+      setRooms((prevRooms) =>
+        prevRooms.map((room) => (room.id === roomId ? roomBefore : room))
+      );
+      setSelectedRoom((prevRoom) =>
+        prevRoom?.id === roomId ? roomBefore : prevRoom
+      );
+      alert(error.message || "Failed to update room calendar.");
+    });
 
-      logAuditEvent({
-        actionType: "room.date_status.updated",
-        module: "room_management",
-        entityType: "room_calendar",
-        entityId: `${roomId}:${dateKey}`,
-        targetLabel: roomBefore.name,
-        status: "success",
-        reason: "Room calendar day toggled",
-        before: { dateKey, status: currentStatus },
-        after: { dateKey, status: nextStatus },
-      });
-    }
+    logAuditEvent({
+      actionType: "room.date_status.updated",
+      module: "room_management",
+      entityType: "room_calendar",
+      entityId: `${roomId}:${dateKey}`,
+      targetLabel: roomBefore.name,
+      status: "success",
+      reason: "Room calendar day toggled",
+      before: { dateKey, status: currentStatus },
+      after: { dateKey, status: nextStatus },
+    });
   };
 
   const handleOpenEditRoom = (room) => {
@@ -414,6 +505,7 @@ function AdminRoomManagement() {
       featured: !!editForm.featured,
       amenities: roomBefore?.amenities || [],
       rating: roomBefore?.rating || 0,
+      dateStatuses: roomBefore?.dateStatuses || {},
     };
 
     setRooms((prevRooms) =>
@@ -580,6 +672,7 @@ function AdminRoomManagement() {
       featured: newRoom.featured,
       amenities: [],
       rating: newRoom.rating,
+      dateStatuses: newRoom.dateStatuses,
     })
       .then((createdRoom) => {
         setRooms((prev) =>
@@ -950,8 +1043,13 @@ function AdminRoomManagement() {
 
                 const dateKey = formatDateKey(date);
                 const past = isPastDate(date);
+                const bookingDateStatus =
+                  bookedDateStatusesByRoom[selectedRoom.id]?.[dateKey] || "available";
                 const roomDateStatus =
-                  selectedRoom.dateStatuses?.[dateKey] || "available";
+                  bookingDateStatus === "reserved"
+                    ? "reserved"
+                    : selectedRoom.dateStatuses?.[dateKey] || "available";
+                const lockedByBooking = bookingDateStatus === "reserved";
 
                 let cellStyle =
                   "bg-[#dff4ea] border border-[#98e0bc] text-slate-800";
@@ -969,17 +1067,21 @@ function AdminRoomManagement() {
                     "bg-[#fde8e8] border border-[#f4b2b2] text-slate-800";
                   barStyle = "bg-[#ff6b6b]";
                   label = t("roomMgmt.calendar.reserved");
-                  hoverText = t("roomMgmt.calendar.clickToUnblock");
+                  hoverText = lockedByBooking
+                    ? t("roomMgmt.calendar.reserved")
+                    : t("roomMgmt.calendar.clickToUnblock");
                 }
 
                 return (
                   <div
                     key={dateKey}
                     onClick={() => {
-                      if (!past) handleToggleDateStatus(selectedRoom.id, dateKey);
+                      if (!past && !lockedByBooking) {
+                        handleToggleDateStatus(selectedRoom.id, dateKey);
+                      }
                     }}
                     className={`group relative h-20 rounded-xl p-2 transition-all duration-300 ${
-                      past ? "cursor-not-allowed" : "cursor-pointer"
+                      past || lockedByBooking ? "cursor-not-allowed" : "cursor-pointer"
                     } ${cellStyle}`}
                   >
                     <div className="text-[14px] font-bold">{date.getDate()}</div>
@@ -999,7 +1101,7 @@ function AdminRoomManagement() {
                               : "bg-[#ff5a5a]"
                           }`}
                         >
-                          {hoverText}
+                          {lockedByBooking ? label : hoverText}
                         </div>
                       </>
                     )}

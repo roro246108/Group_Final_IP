@@ -1,5 +1,6 @@
 import Booking from "../models/Booking.js";
 import Room from "../models/Room.js";
+import mongoose from "mongoose";
 
 const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -8,17 +9,60 @@ const buildBranchMatcher = (branch = "") => {
   return new RegExp(`^${escapeRegex(baseBranch)}(?:\\s+Branch)?$`, "i");
 };
 
+const normalizeDateOnly = (value) => {
+  if (!value) return null;
+
+  const rawValue = value instanceof Date ? value.toISOString() : String(value);
+  const datePart = rawValue.split("T")[0];
+  const parsedDate = new Date(`${datePart}T00:00:00.000Z`);
+
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const buildStayDateKeys = (checkIn, checkOut) => {
+  const keys = [];
+  const current = normalizeDateOnly(checkIn);
+  const end = normalizeDateOnly(checkOut);
+
+  if (!current || !end || current >= end) {
+    return keys;
+  }
+
+  while (current < end) {
+    keys.push(current.toISOString().split("T")[0]);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return keys;
+};
+
+const roomHasManualBlock = (room, dateKeys) =>
+  dateKeys.some((dateKey) => room?.dateStatuses?.[dateKey] === "reserved");
+
 // CREATE
 export const createBooking = async (req, res) => {
   try {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, roomId } = req.body;
 
     if (!name || !email || !phone) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
+    if (roomId) {
+      if (!mongoose.Types.ObjectId.isValid(roomId)) {
+        return res.status(400).json({ message: "Invalid room id" });
+      }
+
+      const room = await Room.findById(roomId);
+
+      if (!room) {
+        return res.status(404).json({ message: "Room not found" });
+      }
+    }
+
     const booking = await Booking.create({
       ...req.body,
+      roomId: roomId || undefined,
       userId: req.user?.userId,
     });
 
@@ -31,11 +75,11 @@ export const createBooking = async (req, res) => {
 // SEARCH AVAILABILITY
 export const searchAvailability = async (req, res) => {
   try {
-    const { branch, roomType, checkIn, checkOut, guests } = req.body;
+    const { branch, roomType, roomId, roomName, checkIn, checkOut, guests } = req.body;
 
-    if (!branch || !checkIn || !checkOut || !guests) {
+    if ((!branch && !roomId && !roomName) || !checkIn || !checkOut || !guests) {
       return res.status(400).json({
-        message: "Branch, check-in, check-out, and guests are required",
+        message: "Room details, check-in, check-out, and guests are required",
       });
     }
 
@@ -73,15 +117,33 @@ export const searchAvailability = async (req, res) => {
 
     // Build query to find available rooms by branch, optional room type, and guest capacity.
     const roomQuery = {
-      branch: buildBranchMatcher(branch),
       available: { $ne: false },
       status: { $nin: ["Occupied", "occupied", "Maintenance", "maintenance"] },
       guests: { $gte: guestNumber },
     };
 
+    if (roomId) {
+      if (!mongoose.Types.ObjectId.isValid(roomId)) {
+        return res.status(400).json({
+          message: "Invalid room id",
+        });
+      }
+
+      roomQuery._id = roomId;
+    } else if (roomName && roomName.trim() !== "") {
+      roomQuery.roomName = new RegExp(`^${escapeRegex(roomName.trim())}$`, "i");
+      if (branch) {
+        roomQuery.branch = buildBranchMatcher(branch);
+      }
+    } else if (branch) {
+      roomQuery.branch = buildBranchMatcher(branch);
+    }
+
     if (roomType && roomType.trim() !== "") {
       roomQuery.type = new RegExp(`^${escapeRegex(roomType.trim())}$`, "i");
     }
+
+    const stayDateKeys = buildStayDateKeys(checkInDate, checkOutDate);
 
     console.log("Incoming search body:", {
       branch,
@@ -96,30 +158,41 @@ export const searchAvailability = async (req, res) => {
     const matchingRooms = await Room.find(roomQuery);
     console.log("Matching rooms found:", matchingRooms.length);
 
-    if (matchingRooms.length === 0) {
+    const manuallyAvailableRooms = matchingRooms.filter(
+      (room) => !roomHasManualBlock(room, stayDateKeys)
+    );
+
+    if (manuallyAvailableRooms.length === 0) {
       return res.status(404).json({
-        message: "No rooms available matching your criteria",
+        message: "Selected dates are unavailable for this room.",
         available: false,
       });
     }
 
-    // Get room names to check for booking conflicts
-    const roomNames = matchingRooms.map((room) => room.roomName);
+    const roomNames = manuallyAvailableRooms.map((room) => room.roomName);
+    const roomIds = manuallyAvailableRooms.map((room) => String(room._id));
 
-    // Check for booking conflicts with these specific rooms
     const bookingQuery = {
-      roomName: { $in: roomNames },
       status: { $nin: ["cancelled", "Cancelled"] },
       checkIn: { $lt: checkOutDate },
       checkOut: { $gt: checkInDate },
+      $or: [
+        { roomId: { $in: roomIds } },
+        { roomName: { $in: roomNames } },
+      ],
     };
 
     const overlappingBookings = await Booking.find(bookingQuery);
-    const bookedRoomNames = new Set(
-      overlappingBookings.map((booking) => booking.roomName)
+    const bookedRoomKeys = new Set(
+      overlappingBookings.flatMap((booking) => [
+        booking.roomId ? String(booking.roomId) : null,
+        booking.roomName || null,
+      ]).filter(Boolean)
     );
-    const availableRooms = matchingRooms.filter(
-      (room) => !bookedRoomNames.has(room.roomName)
+    const availableRooms = manuallyAvailableRooms.filter(
+      (room) =>
+        !bookedRoomKeys.has(String(room._id)) &&
+        !bookedRoomKeys.has(room.roomName)
     );
 
     console.log("Overlapping bookings found:", overlappingBookings.length);
@@ -211,6 +284,42 @@ export const deleteBooking = async (req, res) => {
     }
 
     res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getMyBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({ userId: req.user.userId }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const cancelMyBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.user.userId,
+      },
+      { status: "cancelled" },
+      { new: true, runValidators: true }
+    );
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.status(200).json({
+      message: "Booking cancelled successfully",
+      booking,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

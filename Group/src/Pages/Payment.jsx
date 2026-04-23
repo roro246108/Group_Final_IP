@@ -116,6 +116,7 @@ export default function PaymentPage({ room: propsRoom, nights: propsNights, tota
     console.log("Using token:", token.substring(0, 20) + "...");
 
     await createBooking({
+      roomId: room?._id || room?.id,
       name,
       email,
       phone,
