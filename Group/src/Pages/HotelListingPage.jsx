@@ -8,6 +8,7 @@ import HotelCard from "../Components/HotelCard";
 import Footer from "../Components/Footer";
 import { apiGet, apiPost } from "../services/apiClient";
 import { getSafeRoomImage, normalizeRoomRecord } from "../utils/roomMedia";
+import { useFavorites } from "../Context/FavoritesContext";
 import Background1 from "../assets/Images/Background.jpg";
 import Background2 from "../assets/Images/Background2.jpg";
 import Background3 from "../assets/Images/Backgroud3.jpg";
@@ -28,13 +29,19 @@ export default function HotelListingPage() {
   const location = useLocation();
   const initialState = location.state || {};
   const scrollRef = useRef(null);
+  const availableRoomsRef = useRef(null);
+  const { favoriteCount } = useFavorites();
 
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [animateText, setAnimateText] = useState(true);
   const [rooms, setRooms] = useState([]);
   const [allRooms, setAllRooms] = useState([]);
-  const [favoriteCount, setFavoriteCount] = useState(0);
+  const [searchPopup, setSearchPopup] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
 
   const normalizeGuests = (value) => {
     if (!value) return "";
@@ -140,35 +147,6 @@ export default function HotelListingPage() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    const fetchFavoriteCount = async () => {
-      if (!token) {
-        setFavoriteCount(0);
-        return;
-      }
-
-      try {
-        const response = await fetch("http://localhost:5050/favorites", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          setFavoriteCount(data.count || 0);
-        }
-      } catch (error) {
-        console.error("Failed to fetch favorite count:", error.message);
-      }
-    };
-
-    fetchFavoriteCount();
-  }, []);
-
-  useEffect(() => {
     const sliderInterval = setInterval(() => {
       setAnimateText(false);
 
@@ -180,6 +158,23 @@ export default function HotelListingPage() {
 
     return () => clearInterval(sliderInterval);
   }, [heroImages.length]);
+
+  const scrollToAvailableRooms = () => {
+    window.setTimeout(() => {
+      availableRoomsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 150);
+  };
+
+  const openSearchPopup = (title, message) => {
+    setSearchPopup({
+      open: true,
+      title,
+      message,
+    });
+  };
 
   const handleSearchClick = async (values) => {
     const updatedFilters = {
@@ -206,10 +201,27 @@ export default function HotelListingPage() {
 
       setFilters(updatedFilters);
       setRooms((data.rooms || []).map(normalizeRoomRecord));
+      scrollToAvailableRooms();
     } catch (error) {
       console.error("Search failed:", error.message);
       setFilters(updatedFilters);
       setRooms([]);
+
+      const message = error?.message || "Search failed. Please try different dates.";
+      const reservedPeriodMessage =
+        message.includes("Selected dates are unavailable for this room") ||
+        message.includes("These dates are reserved for this room type");
+
+      if (reservedPeriodMessage) {
+        openSearchPopup(
+          "Dates Already Reserved",
+          "This room is reserved in this period. Please change the date and try again."
+        );
+      } else {
+        openSearchPopup("Search Problem", message);
+      }
+
+      scrollToAvailableRooms();
     } finally {
       setLoading(false);
     }
@@ -339,6 +351,30 @@ export default function HotelListingPage() {
   return (
     <div className="min-h-screen bg-[#f7fafd] pt-28">
       <Navbar />
+
+      {searchPopup.open && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-7 shadow-2xl">
+            <h3 className="text-2xl font-bold text-[#223a5e]">{searchPopup.title}</h3>
+            <p className="mt-3 text-sm leading-7 text-slate-600">{searchPopup.message}</p>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setSearchPopup({
+                    open: false,
+                    title: "",
+                    message: "",
+                  })
+                }
+                className="rounded-2xl bg-[#2f6fb3] px-5 py-3 font-semibold text-white transition hover:bg-[#24588f]"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="relative px-4 md:px-6 lg:px-8">
         <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[36px] shadow-2xl">
@@ -521,7 +557,10 @@ export default function HotelListingPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-16 md:px-6 lg:px-8">
+      <section
+        ref={availableRoomsRef}
+        className="mx-auto max-w-7xl scroll-mt-32 px-4 pb-16 md:px-6 lg:px-8"
+      >
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-4xl font-bold text-[#223a5e]">Available Rooms</h2>

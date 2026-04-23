@@ -1,110 +1,196 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { logAuditEvent } from "../services/auditLogger";
 import { useAuth } from "./AuthContext";
+import { getMyProfile } from "../services/ProfileApi";
+import { cancelMyBooking, getMyBookings } from "../services/bookingsApi";
+import { normalizeHotelBranch } from "../utils/hotelBranches";
+import { getRoomFallbackImage } from "../utils/roomMedia";
 
 const UserContext = createContext();
 
-const DEFAULT_BOOKINGS = [
-  {
-    id: 1,
-    hotel: "The Grand Azure Resort",
-    location: "Dubai, UAE",
-    checkIn: "2026-04-10",
-    checkOut: "2026-04-15",
-    guests: 2,
-    room: "Deluxe Ocean Suite",
-    nights: 5,
-    totalPrice: 2350,
-    status: "upcoming",
-    confirmationCode: "GAR-2024-8821",
-    image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b",
-  },
-  {
-    id: 2,
-    hotel: "Marina Blue Hotel",
-    location: "Barcelona, Spain",
-    checkIn: "2025-11-08",
-    checkOut: "2025-11-12",
-    guests: 1,
-    room: "Standard Double Room",
-    nights: 4,
-    totalPrice: 880,
-    status: "completed",
-    rating: 5,
-    confirmationCode: "MBH-2025-1102",
-    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945",
-  },
-  {
-    id: 3,
-    hotel: "Nile Palace Resort",
-    location: "Cairo, Egypt",
-    checkIn: "2025-08-01",
-    checkOut: "2025-08-06",
-    guests: 3,
-    room: "Executive Suite",
-    nights: 5,
-    totalPrice: 1650,
-    status: "completed",
-    rating: 4,
-    confirmationCode: "NPR-2025-0744",
-    image: "https://images.unsplash.com/photo-1541971875076-8f970d573be6",
-  },
-  {
-    id: 4,
-    hotel: "Azure Cliff Retreat",
-    location: "Santorini, Greece",
-    checkIn: "2025-06-14",
-    checkOut: "2025-06-18",
-    guests: 2,
-    room: "Infinity Pool Villa",
-    nights: 4,
-    totalPrice: 3200,
-    status: "cancelled",
-    confirmationCode: "ACR-2025-0511",
-    image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9",
-  },
-];
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
 
-function buildUserProfile(authUser, currentProfile) {
-  if (!authUser) return null;
+function formatMemberSince(value) {
+  if (!value) return "";
 
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "" : parsed.getFullYear().toString();
+}
+
+function inferRoomType(roomName = "") {
+  const normalized = String(roomName).toLowerCase();
+
+  if (normalized.includes("penthouse")) return "Penthouse";
+  if (normalized.includes("suite")) return "Suite";
+  if (normalized.includes("deluxe")) return "Deluxe";
+  return "Standard";
+}
+
+function normalizeBookingStatus(rawBooking) {
+  if (rawBooking?.status === "cancelled") {
+    return "cancelled";
+  }
+
+  const today = startOfToday();
+  const checkOut = rawBooking?.checkOut ? new Date(rawBooking.checkOut) : null;
+  const checkIn = rawBooking?.checkIn ? new Date(rawBooking.checkIn) : null;
+
+  if (checkOut && !Number.isNaN(checkOut.getTime()) && checkOut < today) {
+    return "completed";
+  }
+
+  if (checkIn && !Number.isNaN(checkIn.getTime()) && checkIn >= today) {
+    return "upcoming";
+  }
+
+  return "upcoming";
+}
+
+function buildConfirmationCode(rawBooking) {
+  const sourceId = String(rawBooking?._id || rawBooking?.id || "").slice(-8).toUpperCase();
+  return sourceId ? `BW-${sourceId}` : "BW-PENDING";
+}
+
+function normalizeBooking(rawBooking) {
+  const branch = rawBooking?.branch || "Blue Wave Branch";
+  const room = rawBooking?.roomName || "Room";
+  const branchImage = normalizeHotelBranch({ name: branch, city: branch }).image;
+  const totalPrice = Number(rawBooking?.total ?? rawBooking?.price ?? 0);
+  const nights =
+    Number(rawBooking?.nights) ||
+    Math.max(
+      1,
+      Math.ceil(
+        (new Date(rawBooking?.checkOut || Date.now()) - new Date(rawBooking?.checkIn || Date.now())) /
+          (1000 * 60 * 60 * 24)
+      )
+    );
+
+  return {
+    id: rawBooking?._id || rawBooking?.id,
+    hotel: branch.replace(/\s+Branch$/i, "") || "Blue Wave Hotel",
+    location: branch,
+    checkIn: rawBooking?.checkIn,
+    checkOut: rawBooking?.checkOut,
+    guests: Number(rawBooking?.guests) || 1,
+    room,
+    nights,
+    totalPrice,
+    status: normalizeBookingStatus(rawBooking),
+    confirmationCode: buildConfirmationCode(rawBooking),
+    image: branchImage || getRoomFallbackImage({ type: inferRoomType(room) }),
+    rating: rawBooking?.status === "cancelled" ? 0 : 5,
+    rawStatus: rawBooking?.status || "confirmed",
+  };
+}
+
+function buildUserProfile(authUser, currentProfile, bookings = []) {
+  if (!authUser && !currentProfile) return null;
+
+  const source = currentProfile || authUser || {};
+  const firstName = source.firstName || authUser?.firstName || "Guest";
+  const lastName = source.lastName || authUser?.lastName || "User";
   const fullName =
-    authUser.fullName?.trim() ||
-    [authUser.firstName, authUser.lastName].filter(Boolean).join(" ").trim() ||
+    source.fullName?.trim() ||
+    [firstName, lastName].filter(Boolean).join(" ").trim() ||
     "Guest User";
-  const [firstName = "Guest", ...restNames] = fullName.split(" ");
-  const lastName = authUser.lastName || restNames.join(" ") || "User";
   const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
 
   return {
+    id: source._id || source.id || authUser?.id || "",
     firstName,
     lastName,
     fullName,
-    email: authUser.email || currentProfile?.email || "",
+    email: source.email || authUser?.email || "",
     avatarInitials: initials || "GU",
-    tier: currentProfile?.tier || "Gold Member",
-    memberSince: currentProfile?.memberSince || new Date().getFullYear().toString(),
-    loyaltyPoints: currentProfile?.loyaltyPoints || 2450,
-    countryCode: currentProfile?.countryCode || "+20",
-    phone: authUser.phone || currentProfile?.phone || "",
-    address: currentProfile?.address || "",
-    city: currentProfile?.city || "",
-    country: currentProfile?.country || "",
-    dob: currentProfile?.dob || "",
-    bookings: currentProfile?.bookings || DEFAULT_BOOKINGS,
+    tier: source.tier || "Gold Member",
+    loyaltyPoints: Number(source.loyaltyPoints) || 2450,
+    memberSince:
+      formatMemberSince(source.createdAt) ||
+      currentProfile?.memberSince ||
+      new Date().getFullYear().toString(),
+    countryCode: source.countryCode || "+20",
+    phone: source.phone || authUser?.phone || "",
+    address: source.address || "",
+    city: source.city || "",
+    country: source.country || "",
+    dob: source.dob || "",
+    avatar: source.avatar || "",
+    bio: source.bio || "",
+    createdAt: source.createdAt || "",
+    bookings,
+    bookingStats: source.bookingStats || {
+      totalBooked: bookings.length,
+      totalCancelled: bookings.filter((booking) => booking.status === "cancelled").length,
+      totalCompleted: bookings.filter((booking) => booking.status === "completed").length,
+    },
+    activityHistory: Array.isArray(source.activityHistory) ? source.activityHistory : [],
+    totalBookings: bookings.length,
   };
 }
 
 export function UserProvider({ children }) {
-  const { currentUser } = useAuth();
-  const [user, setUser] = useState(() => buildUserProfile(currentUser, null));
+  const { currentUser, token } = useAuth();
+  const [user, setUser] = useState(() => buildUserProfile(currentUser, null, []));
+  const [isProfileLoading, setIsProfileLoading] = useState(Boolean(currentUser));
+  const [profileError, setProfileError] = useState("");
 
   useEffect(() => {
-    setUser((prevUser) => buildUserProfile(currentUser, prevUser));
-  }, [currentUser]);
+    if (!currentUser || !token) {
+      setUser(null);
+      setIsProfileLoading(false);
+      setProfileError("");
+      return;
+    }
 
-  const updateUser = async (updatedData) => {
+    let isMounted = true;
+
+    const hydrateUser = async () => {
+      setIsProfileLoading(true);
+      setProfileError("");
+
+      const [profileResult, bookingsResult] = await Promise.allSettled([
+        getMyProfile(),
+        getMyBookings(),
+      ]);
+
+      if (!isMounted) return;
+
+      const profileUser =
+        profileResult.status === "fulfilled" ? profileResult.value?.user : currentUser;
+      const normalizedBookings =
+        bookingsResult.status === "fulfilled"
+          ? (bookingsResult.value || []).map(normalizeBooking)
+          : [];
+
+      setUser(buildUserProfile(currentUser, profileUser, normalizedBookings));
+
+      if (profileResult.status === "rejected" || bookingsResult.status === "rejected") {
+        const message =
+          profileResult.status === "rejected"
+            ? profileResult.reason?.message
+            : bookingsResult.reason?.message;
+        setProfileError(message || "Some profile data could not be loaded.");
+      }
+
+      setIsProfileLoading(false);
+    };
+
+    hydrateUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser, token]);
+
+  const updateUser = (updatedData) => {
     setUser((prevUser) => {
+      if (!prevUser) return prevUser;
+
       const nextUser = {
         ...prevUser,
         ...updatedData,
@@ -135,13 +221,48 @@ export function UserProvider({ children }) {
     });
   };
 
-  const cancelBooking = (id) => {
-    setUser((prevUser) => ({
-      ...prevUser,
-      bookings: prevUser.bookings.map((booking) =>
-        booking.id === id ? { ...booking, status: "cancelled" } : booking
-      ),
-    }));
+  const refreshUser = async () => {
+    if (!currentUser || !token) return;
+
+    setIsProfileLoading(true);
+    setProfileError("");
+
+    try {
+      const [profileData, bookingsData] = await Promise.all([
+        getMyProfile(),
+        getMyBookings(),
+      ]);
+
+      setUser(
+        buildUserProfile(
+          currentUser,
+          profileData?.user,
+          (bookingsData || []).map(normalizeBooking)
+        )
+      );
+    } catch (error) {
+      setProfileError(error.message || "Failed to refresh profile data.");
+    } finally {
+      setIsProfileLoading(false);
+    }
+  };
+
+  const cancelBooking = async (id) => {
+    const response = await cancelMyBooking(id);
+    const normalizedBooking = normalizeBooking(response?.booking);
+
+    setUser((prevUser) => {
+      if (!prevUser) return prevUser;
+
+      return {
+        ...prevUser,
+        bookings: prevUser.bookings.map((booking) =>
+          booking.id === id ? normalizedBooking : booking
+        ),
+      };
+    });
+
+    return normalizedBooking;
   };
 
   useEffect(() => {
@@ -159,7 +280,17 @@ export function UserProvider({ children }) {
   }, [user?.email, user?.firstName, user?.lastName]);
 
   return (
-    <UserContext.Provider value={{ user, setUser, updateUser, cancelBooking }}>
+    <UserContext.Provider
+      value={{
+        user,
+        setUser,
+        updateUser,
+        refreshUser,
+        cancelBooking,
+        isProfileLoading,
+        profileError,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

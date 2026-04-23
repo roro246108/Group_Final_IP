@@ -2,47 +2,45 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../Components/Navbar";
 import HotelCard from "../Components/HotelCard";
+import { useAuth } from "../Context/AuthContext";
+import { useFavorites } from "../Context/FavoritesContext";
 
 export default function FavoritesPage() {
-  const [favoriteRooms, setFavoriteRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
+  const { token, isAuthenticated, isAuthLoading } = useAuth();
+  const { favorites, isFavoritesLoading } = useFavorites();
+  const [favoriteRooms, setFavoriteRooms] = useState([]);
+
+  useEffect(() => {
+    setFavoriteRooms(favorites);
+  }, [favorites]);
+
+  const handleFavoriteToggle = (action, room) => {
+    if (action !== "removed") return;
+
+    setFavoriteRooms((currentRooms) =>
+      currentRooms.filter(
+        (favoriteRoom) =>
+          favoriteRoom._id !== room._id && favoriteRoom.roomId !== room._id
+      )
+    );
+  };
 
   useEffect(() => {
     const fetchFavorites = async () => {
-      if (!token) {
+      if (isAuthLoading) {
+        return;
+      }
+
+      if (!token || !isAuthenticated) {
         alert("Please login first to view your favorites.");
         navigate("/login");
         return;
       }
-
-      try {
-        setLoading(true);
-
-        const response = await fetch("http://localhost:5050/favorites", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to fetch favorites");
-        }
-
-        setFavoriteRooms(data.favorites || []);
-      } catch (error) {
-        console.error("Favorites error:", error.message);
-      } finally {
-        setLoading(false);
-      }
     };
 
     fetchFavorites();
-  }, [token, navigate]);
+  }, [token, isAuthenticated, isAuthLoading, navigate]);
 
   return (
     <div className="min-h-screen bg-[#f7fafd] pt-28">
@@ -65,7 +63,7 @@ export default function FavoritesPage() {
       </div>
 
       <section className="mx-auto max-w-7xl px-4 py-10 md:px-6 md:py-12 lg:px-8">
-        {loading ? (
+        {isFavoritesLoading ? (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
             {[1, 2, 3].map((item) => (
               <div
@@ -77,7 +75,11 @@ export default function FavoritesPage() {
         ) : favoriteRooms.length > 0 ? (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
             {favoriteRooms.map((hotel) => (
-              <HotelCard key={hotel._id} hotel={hotel} />
+              <HotelCard
+                key={hotel._id}
+                hotel={hotel}
+                onFavoriteToggle={handleFavoriteToggle}
+              />
             ))}
           </div>
         ) : (

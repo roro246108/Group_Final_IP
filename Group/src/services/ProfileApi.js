@@ -43,3 +43,63 @@ export async function updateMyProfile(profileData) {
 
   return data;
 }
+
+export async function changeMyPassword(passwordData) {
+  const token = getToken();
+
+  const res = await fetch(`${API_BASE}/profile/change-password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(passwordData),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to update password");
+  }
+
+  return data;
+}
+
+export async function getMyBookings() {
+  const token = getToken();
+
+  const res = await fetch(`${API_BASE}/bookings/my-bookings`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to fetch bookings");
+  }
+
+  return data;
+}
+
+export async function cancelMyBooking(bookingId) {
+  const token = getToken();
+
+  const res = await fetch(`${API_BASE}/bookings/${bookingId}/cancel`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to cancel booking");
+  }
+
+  return data;
+}

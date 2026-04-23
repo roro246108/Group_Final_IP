@@ -1,15 +1,19 @@
 import User from "../models/User.js";
 import Hotel from "../models/Hotel.js";
+import Room from "../models/Room.js";
+import mongoose from "mongoose";
 
 // ADD / REMOVE FAVORITE
 export const toggleFavorite = async (req, res) => {
   try {
     const userId = req.user.userId;
     const { hotelId, roomId } = req.body;
+    const safeHotelId =
+      hotelId && mongoose.Types.ObjectId.isValid(hotelId) ? hotelId : null;
 
-    if (!hotelId || !roomId) {
+    if (!roomId) {
       return res.status(400).json({
-        message: "hotelId and roomId are required",
+        message: "roomId is required",
       });
     }
 
@@ -22,9 +26,7 @@ export const toggleFavorite = async (req, res) => {
     }
 
     const existingIndex = user.favorites.findIndex(
-      (fav) =>
-        fav.hotelId.toString() === hotelId &&
-        fav.roomId.toString() === roomId
+      (fav) => fav.roomId.toString() === roomId
     );
 
     let action = "";
@@ -33,7 +35,7 @@ export const toggleFavorite = async (req, res) => {
       user.favorites.splice(existingIndex, 1);
       action = "removed";
     } else {
-      user.favorites.push({ hotelId, roomId });
+      user.favorites.push({ hotelId: safeHotelId, roomId });
       action = "added";
     }
 
@@ -74,52 +76,70 @@ export const getMyFavorites = async (req, res) => {
       });
     }
 
-    const hotelIds = [...new Set(favorites.map((fav) => fav.hotelId.toString()))];
-    const hotels = await Hotel.find({ _id: { $in: hotelIds } }).lean();
+    const roomIds = [...new Set(favorites.map((fav) => fav.roomId.toString()))];
+    const hotelIds = [
+      ...new Set(
+        favorites
+          .map((fav) => fav.hotelId?.toString())
+          .filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+      ),
+    ];
 
-    const favoriteRooms = [];
+    const [rooms, hotels] = await Promise.all([
+      Room.find({ _id: { $in: roomIds } }).lean(),
+      hotelIds.length > 0
+        ? Hotel.find({ _id: { $in: hotelIds } }).lean()
+        : Promise.resolve([]),
+    ]);
 
-    favorites.forEach((fav) => {
-      const hotel = hotels.find(
-        (h) => h._id.toString() === fav.hotelId.toString()
-      );
+    const favoriteRooms = favorites
+      .map((fav) => {
+        const room = rooms.find((item) => item._id.toString() === fav.roomId.toString());
+        if (!room) return null;
 
-      if (!hotel) return;
+        const hotel =
+          hotels.find(
+            (item) =>
+              fav.hotelId && item._id.toString() === fav.hotelId.toString()
+          ) ||
+          hotels.find(
+            (item) =>
+              item.name === room.branch &&
+              item.hotelName === room.hotelName &&
+              item.city === room.city
+          ) ||
+          null;
 
-      const room = hotel.rooms.find(
-        (r) => r._id && r._id.toString() === fav.roomId.toString()
-      );
-
-      if (!room) return;
-
-      favoriteRooms.push({
-        _id: room._id,
-        hotelId: hotel._id,
-        hotelName: hotel.hotelName,
-        branch: hotel.name,
-        city: hotel.city,
-        location: hotel.address,
-        status: hotel.status,
-        roomName: room.roomName,
-        type: room.type,
-        price: room.price,
-        rating: room.rating ?? hotel.rating ?? 0,
-        guests: room.guests,
-        beds: room.beds,
-        baths: room.baths,
-        size: room.size ?? 0,
-        available: room.available,
-        featured: room.featured,
-        image: room.image || hotel.image,
-        amenities:
-          room.amenities && room.amenities.length > 0
-            ? room.amenities
-            : hotel.amenities,
-        description: hotel.description,
-        phone: hotel.phone,
-        email: hotel.email,
-      });
-    });
+        return {
+          _id: room._id,
+          roomId: room._id,
+          hotelId: hotel?._id || fav.hotelId || null,
+          hotelName: room.hotelName || hotel?.hotelName || "Blue Wave Hotel",
+          branch: room.branch || hotel?.name || "",
+          city: room.city || hotel?.city || "",
+          location: room.location || hotel?.address || "",
+          status: room.status || (room.available ? "Available" : "Occupied"),
+          roomName: room.roomName,
+          type: room.type,
+          price: room.price,
+          rating: room.rating ?? hotel?.rating ?? 0,
+          guests: room.guests,
+          beds: room.beds,
+          baths: room.baths,
+          size: room.size ?? 0,
+          available: room.available,
+          featured: room.featured,
+          image: room.image || hotel?.image || "",
+          amenities:
+            room.amenities && room.amenities.length > 0
+              ? room.amenities
+              : hotel?.amenities || [],
+          description: room.description || hotel?.description || "",
+          phone: hotel?.phone || "",
+          email: hotel?.email || "",
+        };
+      })
+      .filter(Boolean);
 
     res.status(200).json({
       count: favoriteRooms.length,

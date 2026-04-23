@@ -1,6 +1,13 @@
 import Booking from "../models/Booking.js";
 import Room from "../models/Room.js";
 import mongoose from "mongoose";
+import ProfileInfo from "../models/ProfileInfo.js";
+import { appendProfileActivity } from "./profileController.js";
+const MAX_BOOKING_SNAPSHOTS = 20;
+
+function buildConfirmationCode() {
+  return `BW-${Date.now().toString(36).toUpperCase()}`;
+}
 
 const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -39,21 +46,154 @@ const buildStayDateKeys = (checkIn, checkOut) => {
 const roomHasManualBlock = (room, dateKeys) =>
   dateKeys.some((dateKey) => room?.dateStatuses?.[dateKey] === "reserved");
 
+const canUseObjectId = (value) =>
+  !!value && mongoose.Types.ObjectId.isValid(String(value));
+
+const getBookingRoomId = (booking = {}) => booking?.roomId || booking?.room || null;
+
+const enrichBookingsWithRoomData = async (bookings = []) => {
+  const roomIds = [...new Set(
+    bookings
+      .map((booking) => getBookingRoomId(booking))
+      .filter((roomId) => canUseObjectId(roomId))
+  )];
+
+  if (roomIds.length === 0) {
+    return bookings;
+  }
+
+  const rooms = await Room.find({ _id: { $in: roomIds } }).lean();
+  const roomMap = new Map(rooms.map((room) => [String(room._id), room]));
+
+  return bookings.map((booking) => {
+    const resolvedRoomId = getBookingRoomId(booking);
+    const room = resolvedRoomId ? roomMap.get(String(resolvedRoomId)) : null;
+
+    return {
+      ...booking,
+      roomId: resolvedRoomId || "",
+      image: booking.image || room?.image || "",
+      branch: booking.branch || room?.branch || "",
+      roomName: booking.roomName || room?.roomName || "",
+      guests: booking.guests || room?.guests || 1,
+      price: booking.price ?? room?.price ?? 0,
+    };
+  });
+};
+
+async function updateProfileBookingStats(userId) {
+  const bookings = await Booking.find({ userId }).sort({ createdAt: -1 }).lean();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const snapshots = bookings.map((booking) => {
+    const checkOut = booking?.checkOut ? new Date(booking.checkOut) : null;
+    const status =
+      booking?.status === "cancelled"
+        ? "cancelled"
+        : checkOut && !Number.isNaN(checkOut.getTime()) && checkOut < today
+          ? "completed"
+          : "upcoming";
+
+    const nights =
+      Number(booking?.nights) ||
+      Math.max(
+        1,
+      Math.ceil(
+          (new Date(booking?.checkOut || Date.now()) - new Date(booking?.checkIn || Date.now())) /
+            (1000 * 60 * 60 * 24)
+        )
+      );
+
+    return {
+      bookingId: booking._id,
+      roomId: getBookingRoomId(booking) || "",
+      roomName: booking.roomName || "",
+      hotelName: booking.hotelName || "Blue Wave Hotel",
+      branch: booking.branch || "",
+      city: booking.city || "",
+      location: booking.location || "",
+      image: booking.image || "",
+      roomType: booking.roomType || "",
+      beds: Number(booking.beds) || 1,
+      baths: Number(booking.baths) || 1,
+      size: Number(booking.size) || 1,
+      description: booking.description || "",
+      amenities: Array.isArray(booking.amenities) ? booking.amenities : [],
+      bookedBy: {
+        name: booking.name || "",
+        email: booking.email || "",
+        phone: booking.phone || "",
+      },
+      confirmationCode: booking.confirmationCode || "",
+      pricePerNight: Number(booking.price) || 0,
+      checkIn: booking.checkIn || null,
+      checkOut: booking.checkOut || null,
+      guests: Number(booking.guests) || 1,
+      nights,
+      total: Number(booking.total ?? booking.price ?? 0),
+      status,
+      rawBookingStatus: booking.status || "confirmed",
+      statusDetails: {
+        bookedAt: booking.createdAt || new Date(),
+        cancelledAt: booking.cancelledAt || null,
+        completedAt: status === "completed" ? checkOut || booking.updatedAt || null : null,
+        lastUpdatedAt: booking.updatedAt || booking.createdAt || new Date(),
+      },
+      bookedAt: booking.createdAt || new Date(),
+    };
+  });
+
+  const totalBooked = snapshots.length;
+  const totalCancelled = snapshots.filter((booking) => booking.status === "cancelled").length;
+  const totalCompleted = snapshots.filter((booking) => booking.status === "completed").length;
+  const upcomingStays = snapshots
+    .filter((booking) => booking.status === "upcoming")
+    .slice(0, MAX_BOOKING_SNAPSHOTS);
+  const bookingHistory = snapshots
+    .filter((booking) => booking.status === "completed" || booking.status === "cancelled")
+    .slice(0, MAX_BOOKING_SNAPSHOTS);
+
+  return ProfileInfo.findOneAndUpdate(
+    { userId },
+    {
+      $setOnInsert: { userId },
+      $set: {
+        bookingStats: {
+          totalBooked,
+          totalCancelled,
+          totalCompleted,
+        },
+        upcomingStays,
+        bookingHistory,
+      },
+    },
+    {
+      new: true,
+      upsert: true,
+      runValidators: true,
+    }
+  );
+}
+
 // CREATE
 export const createBooking = async (req, res) => {
   try {
-    const { name, email, phone, roomId } = req.body;
+    const { name, email, phone, roomId, room: roomField } = req.body;
+    const resolvedRoomId = roomId || roomField;
 
     if (!name || !email || !phone) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    if (roomId) {
-      if (!mongoose.Types.ObjectId.isValid(roomId)) {
+    let room = null;
+
+    if (resolvedRoomId) {
+      if (!mongoose.Types.ObjectId.isValid(resolvedRoomId)) {
         return res.status(400).json({ message: "Invalid room id" });
       }
 
-      const room = await Room.findById(roomId);
+      room = await Room.findById(resolvedRoomId);
 
       if (!room) {
         return res.status(404).json({ message: "Room not found" });
@@ -62,9 +202,49 @@ export const createBooking = async (req, res) => {
 
     const booking = await Booking.create({
       ...req.body,
-      roomId: roomId || undefined,
+      room: resolvedRoomId || undefined,
+      roomId: resolvedRoomId || undefined,
+      confirmationCode: req.body.confirmationCode || buildConfirmationCode(),
+      image: req.body.image || room?.image || "",
+      hotelName: req.body.hotelName || room?.hotelName || "Blue Wave Hotel",
+      branch: req.body.branch || room?.branch || "",
+      city: req.body.city || room?.city || "",
+      location: req.body.location || room?.location || "",
+      roomName: req.body.roomName || room?.roomName || "",
+      roomType: req.body.roomType || room?.type || "",
+      beds: req.body.beds || room?.beds || 1,
+      baths: req.body.baths || room?.baths || 1,
+      size: req.body.size || room?.size || 1,
+      description: req.body.description || room?.description || "",
+      amenities: req.body.amenities || room?.amenities || [],
+      guests: req.body.guests || room?.guests || 1,
+      price: req.body.price ?? room?.price ?? 0,
       userId: req.user?.userId,
     });
+
+    if (req.user?.userId) {
+      await Promise.all([
+        updateProfileBookingStats(req.user.userId),
+        appendProfileActivity(req.user.userId, {
+          type: "booking_created",
+          title: "Booking created",
+          description: `${booking.roomName || "Room"} at ${booking.branch || "Blue Wave Branch"} was booked.`,
+          metadata: {
+            bookingId: booking._id,
+            confirmationCode: booking.confirmationCode || "",
+            hotelName: booking.hotelName || "",
+            roomName: booking.roomName || "",
+            branch: booking.branch || "",
+            city: booking.city || "",
+            location: booking.location || "",
+            roomType: booking.roomType || "",
+            checkIn: booking.checkIn,
+            checkOut: booking.checkOut,
+            total: booking.total ?? booking.price ?? 0,
+          },
+        }),
+      ]);
+    }
 
     res.status(201).json(booking);
   } catch (error) {
@@ -177,6 +357,7 @@ export const searchAvailability = async (req, res) => {
       checkIn: { $lt: checkOutDate },
       checkOut: { $gt: checkInDate },
       $or: [
+        { room: { $in: roomIds } },
         { roomId: { $in: roomIds } },
         { roomName: { $in: roomNames } },
       ],
@@ -185,7 +366,7 @@ export const searchAvailability = async (req, res) => {
     const overlappingBookings = await Booking.find(bookingQuery);
     const bookedRoomKeys = new Set(
       overlappingBookings.flatMap((booking) => [
-        booking.roomId ? String(booking.roomId) : null,
+        getBookingRoomId(booking) ? String(getBookingRoomId(booking)) : null,
         booking.roomName || null,
       ]).filter(Boolean)
     );
@@ -291,11 +472,13 @@ export const deleteBooking = async (req, res) => {
 
 export const getMyBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ userId: req.user.userId }).sort({
+    const bookings = await Booking.find({ userId: req.user.userId }).lean().sort({
       createdAt: -1,
     });
 
-    res.status(200).json(bookings);
+    const enrichedBookings = await enrichBookingsWithRoomData(bookings);
+
+    res.status(200).json(enrichedBookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -308,13 +491,35 @@ export const cancelMyBooking = async (req, res) => {
         _id: req.params.id,
         userId: req.user.userId,
       },
-      { status: "cancelled" },
+      { status: "cancelled", cancelledAt: new Date() },
       { new: true, runValidators: true }
     );
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
+
+    await Promise.all([
+      updateProfileBookingStats(req.user.userId),
+      appendProfileActivity(req.user.userId, {
+        type: "booking_cancelled",
+        title: "Booking cancelled",
+        description: `${booking.roomName || "Room"} at ${booking.branch || "Blue Wave Branch"} was cancelled.`,
+        metadata: {
+          bookingId: booking._id,
+          confirmationCode: booking.confirmationCode || "",
+          hotelName: booking.hotelName || "",
+          roomName: booking.roomName || "",
+          branch: booking.branch || "",
+          city: booking.city || "",
+          location: booking.location || "",
+          roomType: booking.roomType || "",
+          checkIn: booking.checkIn,
+          checkOut: booking.checkOut,
+          total: booking.total ?? booking.price ?? 0,
+        },
+      }),
+    ]);
 
     res.status(200).json({
       message: "Booking cancelled successfully",

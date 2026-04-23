@@ -1,65 +1,5 @@
 import mongoose from "mongoose";
 
-const roomSchema = new mongoose.Schema({
-  roomName: {
-    type: String,
-    required: [true, "Room name is required"],
-    trim: true,
-  },
-  type: {
-    type: String,
-    required: [true, "Room type is required"],
-    enum: ["Standard", "Deluxe", "Suite", "Penthouse"],
-  },
-  price: {
-    type: Number,
-    required: [true, "Price is required"],
-    min: [0, "Price cannot be negative"],
-  },
-  rating: {
-    type: Number,
-    min: [0, "Rating cannot be less than 0"],
-    max: [5, "Rating cannot be more than 5"],
-    default: 0,
-  },
-  guests: {
-    type: Number,
-    required: [true, "Guests number is required"],
-    min: [1, "Guests must be at least 1"],
-  },
-  beds: {
-    type: Number,
-    required: [true, "Beds number is required"],
-    min: [1, "Beds must be at least 1"],
-  },
-  baths: {
-    type: Number,
-    required: [true, "Baths number is required"],
-    min: [1, "Baths must be at least 1"],
-  },
-  size: {
-    type: Number,
-    min: [0, "Size cannot be negative"],
-    default: 0,
-  },
-  available: {
-    type: Boolean,
-    default: true,
-  },
-  featured: {
-    type: Boolean,
-    default: false,
-  },
-  image: {
-    type: String,
-    default: "",
-  },
-  amenities: {
-    type: [String],
-    default: [],
-  },
-});
-
 const hotelSchema = new mongoose.Schema(
   {
     name: {
@@ -97,6 +37,7 @@ const hotelSchema = new mongoose.Schema(
     image: {
       type: String,
       default: "",
+      trim: true,
     },
     amenities: {
       type: [String],
@@ -118,10 +59,6 @@ const hotelSchema = new mongoose.Schema(
       lowercase: true,
       default: "",
       match: [/^\S+@\S+\.\S+$/, "Invalid email address"],
-    },
-    rooms: {
-      type: [roomSchema],
-      default: [],
     },
   },
   { timestamps: true }

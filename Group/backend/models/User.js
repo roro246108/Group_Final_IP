@@ -5,7 +5,7 @@ const favoriteSchema = new mongoose.Schema(
     hotelId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Hotel",
-      required: true,
+      default: null,
     },
     roomId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -87,7 +87,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-
     lastLoginAt: {
       type: Date,
     },

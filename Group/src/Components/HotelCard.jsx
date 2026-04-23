@@ -1,73 +1,26 @@
 import { Heart, MapPin, Star, Users, BedDouble, Bath } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
 
+import { useAuth } from "../Context/AuthContext";
 import { useFavorites } from "../Context/FavoritesContext";
 import { getSafeRoomImage } from "../utils/roomMedia";
 
-export default function HotelCard({ hotel }) {
+export default function HotelCard({ hotel, onFavoriteToggle }) {
   const navigate = useNavigate();
-  const [isFavorite, setIsFavorite] = useState(false);
-
-  const token = localStorage.getItem("token");
-
-  useEffect(() => {
-    const fetchFavorites = async () => {
-      if (!token) {
-        setIsFavorite(false);
-        return;
-      }
-
-      try {
-        const response = await fetch("http://localhost:5050/favorites", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          const exists = (data.favorites || []).some(
-            (fav) => fav._id === hotel._id
-          );
-          setIsFavorite(exists);
-        }
-      } catch (error) {
-        console.error("Failed to load favorites:", error.message);
-      }
-    };
-
-    fetchFavorites();
-  }, [hotel._id, token]);
+  const { token, isAuthenticated } = useAuth();
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favoriteActive = isFavorite(hotel._id);
 
   const handleFavoriteClick = async () => {
-    if (!token) {
+    if (!token || !isAuthenticated) {
       alert("Please login first to add favorites.");
       navigate("/login");
       return;
     }
 
     try {
-      const response = await fetch("http://localhost:5050/favorites/toggle", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          hotelId: hotel.hotelId,
-          roomId: hotel._id,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to update favorite");
-      }
-
-      setIsFavorite(data.action === "added");
+      const action = await toggleFavorite(hotel);
+      onFavoriteToggle?.(action, hotel);
     } catch (error) {
       console.error("Favorite error:", error.message);
       alert(error.message);
@@ -103,7 +56,7 @@ export default function HotelCard({ hotel }) {
           <Heart
             size={18}
             className={
-              isFavorite ? "fill-red-500 text-red-500" : "text-slate-600"
+              favoriteActive ? "fill-red-500 text-red-500" : "text-slate-600"
             }
           />
         </button>

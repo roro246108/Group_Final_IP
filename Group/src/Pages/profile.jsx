@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../Context/UserContext';
 import { useAuth } from '../Context/AuthContext';
+import { changeMyPassword } from '../services/ProfileApi';
 import EditProfileForm from "../Components/EditProfileForm";
 import UpcomingStays from "../Components/UpcomingStays";
 import BookingHistory from "../Components/BookingHistory";
 import {
-  CalendarDays, History, Award, Edit3, Shield, X, CheckCircle2, 
-  AlertCircle, LogOut, Loader2 // Added Loader2 for the spinner
+  CalendarDays, History, Award, Edit3, Shield, X,
+  AlertCircle, LogOut, Loader2, Clock3, UserCog, Ban, KeyRound
 } from 'lucide-react';
 
 const tabs = [
@@ -15,6 +16,90 @@ const tabs = [
   { id: 'upcoming', label: 'Upcoming Stays', icon: CalendarDays },
   { id: 'history', label: 'Booking History', icon: History },
 ];
+
+function formatActivityDate(value) {
+  if (!value) return "Just now";
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Just now";
+
+  return parsed.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function ActivityIcon({ type }) {
+  if (type === "booking_created") return <CalendarDays className="w-4 h-4" />;
+  if (type === "booking_cancelled") return <Ban className="w-4 h-4" />;
+  if (type === "password_changed") return <KeyRound className="w-4 h-4" />;
+  return <UserCog className="w-4 h-4" />;
+}
+
+function ActivityHistoryPanel({ user }) {
+  const history = user.activityHistory || [];
+  const stats = user.bookingStats || {};
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+      <div className="px-8 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-4">
+        <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
+          <Clock3 className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="text-md font-bold text-blue-900 tracking-tight">Profile Activity</h3>
+          <p className="text-[11px] text-slate-500 font-medium tracking-tight">Bookings, cancellations, and account updates</p>
+        </div>
+      </div>
+
+      <div className="p-8 space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-center">
+            <p className="text-2xl font-bold text-blue-900">{stats.totalBooked || 0}</p>
+            <p className="text-xs text-slate-500">Total Booked</p>
+          </div>
+          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-4 text-center">
+            <p className="text-2xl font-bold text-red-500">{stats.totalCancelled || 0}</p>
+            <p className="text-xs text-slate-500">Cancelled</p>
+          </div>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-4 text-center">
+            <p className="text-2xl font-bold text-emerald-600">{stats.totalCompleted || 0}</p>
+            <p className="text-xs text-slate-500">Completed</p>
+          </div>
+        </div>
+
+        {history.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-slate-500 text-sm">
+            No profile activity yet.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {history.map((item, index) => (
+              <div
+                key={`${item.type}-${item.createdAt || index}`}
+                className="flex items-start gap-4 rounded-xl border border-slate-200 px-4 py-4"
+              >
+                <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <ActivityIcon type={item.type} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                    <p className="font-bold text-slate-800 text-sm">{item.title}</p>
+                    <p className="text-xs text-slate-400">{formatActivityDate(item.createdAt)}</p>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1">{item.description || "Account activity recorded."}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // --- Sub-Component: Log Out Confirmation Modal ---
 function LogOutModal({ isOpen, onClose, onConfirm, isLoggingOut }) {
@@ -95,13 +180,22 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
     if (formData.newPassword.length < 6) { setError("New password must be at least 6 characters long."); return; }
     if (formData.newPassword !== formData.confirmPassword) { setError("The new passwords do not match."); return; }
     setIsSubmitting(true);
-    setTimeout(() => {
+
+    try {
+      await changeMyPassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+      });
+
       setIsSubmitting(false);
       onSuccess();
       setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setStrength({ label: "", color: "bg-slate-200", width: "0%" });
       onClose();
-    }, 1500);
+    } catch (submitError) {
+      setError(submitError.message || "Failed to update password.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -154,7 +248,7 @@ function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
 
 // --- Main Page Component ---
 export default function ProfilePage() {
-  const { user } = useUser();
+  const { user, isProfileLoading, profileError } = useUser();
   const { logout } = useAuth();
   const navigate = useNavigate();
   
@@ -184,7 +278,11 @@ export default function ProfilePage() {
     navigate('/'); 
   };
 
-  if (!user) return <div className="p-20 text-center text-slate-400 font-medium">Loading Profile...</div>;
+  if (isProfileLoading && !user) {
+    return <div className="p-20 text-center text-slate-400 font-medium">Loading Profile...</div>;
+  }
+
+  if (!user) return <div className="p-20 text-center text-slate-400 font-medium">Profile unavailable.</div>;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20 relative font-sans">
@@ -192,17 +290,23 @@ export default function ProfilePage() {
         
         <ProfileHero user={user} />
 
+        {profileError ? (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-700">
+            {profileError}
+          </div>
+        ) : null}
+
         <div className="flex gap-2 bg-white p-2 rounded-2xl mb-10 border border-slate-200/60 shadow-sm">
-          {tabs.map(({ id, label, icon: Icon }) => (
+          {tabs.map((tab) => (
             <button 
-              key={id} 
-              onClick={() => setActiveTab(id)} 
+              key={tab.id} 
+              onClick={() => setActiveTab(tab.id)} 
               className={`flex-1 flex items-center justify-center gap-3 py-3.5 px-6 rounded-xl text-sm font-bold transition-all duration-200 ${
-                activeTab === id ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+                activeTab === tab.id ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
               }`}
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
+              <tab.icon className="w-4 h-4 shrink-0" />
+              {tab.label}
             </button>
           ))}
         </div>
@@ -236,6 +340,8 @@ export default function ProfilePage() {
                     </div>
                   </div>
                </div>
+
+               <ActivityHistoryPanel user={user} />
 
                <div className="pt-10 mt-10 border-t border-slate-200 flex justify-center">
                   <button 
@@ -273,6 +379,10 @@ export default function ProfilePage() {
 
 // --- ProfileHero helper ---
 function ProfileHero({ user }) {
+  const completedBookings = (user.bookings || []).filter((booking) => booking.status === "completed").length;
+  const upcomingBookings = (user.bookings || []).filter((booking) => booking.status === "upcoming").length;
+  const memberSince = user.memberSince || "N/A";
+
   return (
     <div className="relative rounded-3xl overflow-hidden mb-8 shadow-xl border border-blue-900 bg-blue-900">
       <div className="absolute top-0 right-0 w-80 h-80 bg-blue-600 rounded-full blur-[100px] opacity-20 -mr-20 -mt-20"></div>
@@ -297,11 +407,11 @@ function ProfileHero({ user }) {
           </div>
           <p className="text-blue-200 text-lg mt-1 font-medium opacity-90">{user.email}</p>
           <div className="mt-8 flex flex-wrap justify-center sm:justify-start gap-10 border-t border-blue-800/60 pt-6">
-            <div><p className="text-[10px] text-blue-300 uppercase font-black tracking-[0.15em] mb-1">Loyalty Points</p><p className="text-2xl font-bold text-white tracking-tight">2,450 <span className="text-xs font-medium text-blue-400 opacity-80">PTS</span></p></div>
+            <div><p className="text-[10px] text-blue-300 uppercase font-black tracking-[0.15em] mb-1">Upcoming Stays</p><p className="text-2xl font-bold text-white tracking-tight">{upcomingBookings}</p></div>
             <div className="w-px h-10 bg-blue-800/80 hidden md:block"></div>
-            <div><p className="text-[10px] text-blue-300 uppercase font-black tracking-[0.15em] mb-1">Total Bookings</p><p className="text-2xl font-bold text-white">12</p></div>
+            <div><p className="text-[10px] text-blue-300 uppercase font-black tracking-[0.15em] mb-1">Completed Stays</p><p className="text-2xl font-bold text-white">{completedBookings}</p></div>
             <div className="w-px h-10 bg-blue-800/80 hidden md:block"></div>
-            <div><p className="text-[10px] text-blue-300 uppercase font-black tracking-[0.15em] mb-1">Member Since</p><p className="text-2xl font-bold text-white tracking-tight">2024</p></div>
+            <div><p className="text-[10px] text-blue-300 uppercase font-black tracking-[0.15em] mb-1">Member Since</p><p className="text-2xl font-bold text-white tracking-tight">{memberSince}</p></div>
           </div>
         </div>
       </div>
